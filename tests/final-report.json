@@ -1,0 +1,8 @@
+{
+  "continuousTyping": "passed at 360px",
+  "unsavedChanges": "protected and editable",
+  "previewReady": "callback confirmed",
+  "previewFail": "callback confirmed under simulated storage failure",
+  "offlineRequests": "document only",
+  "desktopOverflow": false
+}

@@ -1,0 +1,22 @@
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const base=process.env.QISUSHUO_URL||'http://127.0.0.1:8800';
+(async()=>{const browser=await chromium.connectOverCDP('http://127.0.0.1:9333');const context=browser.contexts()[0],page=context.pages().find(p=>p.url().startsWith(base));let probe;try{
+ await page.setViewportSize({width:360,height:844});await page.goto(base+'/preview.html?final=typing#create');await page.waitForFunction(()=>window.__qisushuoReady);
+ await page.getByRole('button',{name:'新建稿件',exact:true}).click();
+ const title=page.getByLabel('记录标题',{exact:true});await title.pressSequentially('手机连续输入验收',{delay:35});assert.equal(await title.inputValue(),'手机连续输入验收');assert.equal(await title.evaluate(el=>el===document.activeElement),true);
+ await page.getByLabel('正文内容',{exact:true}).fill('手机上可连续输入，不会在第一个字后失去焦点。');
+ assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await page.getByRole('button',{name:'取消',exact:true}).click();await page.locator('.discard-overlay').getByRole('button',{name:'继续编辑',exact:true}).click();assert.equal(await title.inputValue(),'手机连续输入验收');
+ await page.getByRole('button',{name:'取消',exact:true}).click();await page.locator('.discard-overlay').getByRole('button',{name:'放弃修改',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+ probe=await context.newPage();await probe.addInitScript(()=>{window.asteamPreview={ready(){window.__previewResult='ready';},fail(reason){window.__previewResult='fail:'+reason;}};});
+ const requests=[];probe.on('request',r=>requests.push(r.url()));
+ await probe.goto(base+'/preview.html?final=ready');await probe.waitForFunction(()=>window.__previewResult==='ready');
+ assert.deepEqual(requests,[base+'/preview.html?final=ready']);await probe.close();
+ probe=await context.newPage();await probe.addInitScript(()=>{window.asteamPreview={ready(){window.__previewResult='ready';},fail(reason){window.__previewResult='fail:'+reason;}};Object.defineProperty(window,'indexedDB',{get(){throw new Error('存储暂时不可用');}});});
+ await probe.goto(base+'/preview.html?final=fail');await probe.waitForFunction(()=>String(window.__previewResult).startsWith('fail:'));await probe.close();probe=null;
+ await page.setViewportSize({width:1440,height:1000});await page.goto(base+'/?final=done#home');await page.waitForFunction(()=>window.__qisushuoReady);
+ const report={continuousTyping:'passed at 360px',unsavedChanges:'protected and editable',previewReady:'callback confirmed',previewFail:'callback confirmed under simulated storage failure',offlineRequests:'document only',desktopOverflow:await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)};
+ assert.equal(report.desktopOverflow,false);fs.writeFileSync('tests/final-report.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
+ }finally{if(probe&&!probe.isClosed())await probe.close();await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});

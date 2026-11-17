@@ -56,7 +56,8 @@ export const repo={
   async backup():Promise<Backup>{return offline?{format:'qisushuo-backup',schema:1,exported_at:new Date().toISOString(),...structuredClone(localState)}:api('export');},
   async restore(data:Backup):Promise<Row[]>{
     if(data.format!=='qisushuo-backup'||data.schema!==1||!Array.isArray(data.records)||data.records.length>2000)throw new Error('请选择有效的耆宿说备份文件');
-    if(data.records.some(r=>!r.id||!r.title||!r.kind||typeof r.body!=='string'||!Array.isArray(r.tags)))throw new Error('备份中的资料格式不完整');
+    const valid=(r:Row)=>r&&typeof r.id==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(r.id)&&typeof r.title==='string'&&r.title.trim().length>0&&r.title.length<=200&&['knowledge','expert','source','evidence','draft','project','task','note'].includes(r.kind)&&typeof r.body==='string'&&['tags','sourceIds','relatedIds'].every(k=>Array.isArray(r[k])&&(r[k] as unknown[]).every(v=>typeof v==='string'))&&['category','era','place','status','created','updated'].every(k=>typeof r[k]==='string')&&Number.isInteger(r.version)&&r.version>0&&(!r.citations||Array.isArray(r.citations)&&r.citations.every(c=>typeof c.id==='string'&&typeof c.title==='string'&&typeof c.quote==='string'&&Number.isInteger(c.version)&&c.version>0));
+    if(data.records.some(r=>!valid(r))||(data.revisions&&!Array.isArray(data.revisions))||data.revisions?.some(r=>!valid(r))||new Set(data.records.map(r=>r.id)).size!==data.records.length)throw new Error('备份中的资料格式不完整，原有资料保留');
     if(!offline)return (await api('restore',data)).records;
     const previous=localState;localState={records:structuredClone(data.records),revisions:structuredClone(data.revisions||data.records)};
     try{await persist();return structuredClone(localState.records);}catch(e){localState=previous;throw e;}
@@ -93,6 +94,7 @@ export async function prepareImport(files:File[],existing:Row[]):Promise<ImportI
       let body=raw,props:Record<string,unknown>={};const front=raw.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
       if(front){const parsed=yaml.load(front[1]);if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))props=parsed as Record<string,unknown>;body=raw.slice(front[0].length);}
       const title=String(props.title||body.match(/^#\s+(.+)$/m)?.[1]||file.name.replace(/\.[^.]+$/,''));
+      if(title.length>200)throw new Error('标题超过 200 字，请缩短标题后再导入');
       const list=(v:unknown)=>Array.isArray(v)?v.map(String):typeof v==='string'?v.split(/[,，\s]+/).filter(Boolean):[];
       const tags=[...new Set([...list(props.tags),...[...body.matchAll(/(?:^|\s)#([^#\s\[\]]+)/g)].map(m=>m[1])])].slice(0,30);
       const old=existing.find(r=>r.path===path&&r.kind==='knowledge');

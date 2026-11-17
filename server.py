@@ -94,7 +94,7 @@ def normalize(data: dict):
     if any(not isinstance(t, str) for t in data.get('sourceIds', []) + data.get('relatedIds', [])):
         raise HTTPException(422, '关联编号格式不正确')
     for cite in data.get('citations', []):
-        if not isinstance(cite, dict) or not isinstance(cite.get('id'), str) or not isinstance(cite.get('version', 1), int) or not isinstance(cite.get('quote', ''), str):
+        if not isinstance(cite, dict) or not isinstance(cite.get('id'), str) or not ID_PATTERN.fullmatch(cite['id']) or not isinstance(cite.get('version'), int) or not 1<=cite['version']<1000000 or not isinstance(cite.get('quote'), str) or not isinstance(cite.get('title'), str):
             raise HTTPException(422, '引用格式不正确')
     data = dict(data)
     for key in ('tags','sourceIds','relatedIds','citations'):
@@ -110,6 +110,9 @@ def normalize(data: dict):
         data.setdefault(key,False)
         if not isinstance(data[key],bool):
             raise HTTPException(422,'资料状态格式不正确')
+    for key in ('aliases','unresolvedLinks'):
+        if key in data and (not isinstance(data[key],list) or len(data[key])>500 or any(not isinstance(item,str) for item in data[key])):
+            raise HTTPException(422,'别名或链接格式不正确')
     data['title'] = title.strip()
     return data
 
@@ -126,7 +129,7 @@ def put(db: Session, space: str, data: dict, check_version=True):
     if old and old.kind != data['kind']:
         raise HTTPException(422, '记录类型不能变更')
     version = old.version + 1 if old else 1
-    data.update(version=version, updated=now())
+    data.update(version=version, updated=(data.get('updated') or now()) if not check_version and not old else now())
     data.setdefault('created', data['updated'])
     payload = json.dumps(data, ensure_ascii=False)
     if old:
@@ -253,9 +256,9 @@ def restore_workspace(data: dict,request: Request):
     if data.get('format')!='qisushuo-backup' or data.get('schema')!=1 or not isinstance(data.get('records'),list) or len(data['records'])>2000:
         raise HTTPException(422,'这不是有效的耆宿说备份文件')
     records=[normalize(r) for r in data['records']]
-    revisions=[normalize(r) for r in data.get('revisions',[])]
-    if len(revisions)>20000:
+    if not isinstance(data.get('revisions',[]),list) or len(data.get('revisions',[]))>20000:
         raise HTTPException(422,'备份历史记录过多')
+    revisions=[normalize(r) for r in data.get('revisions',[])]
     if len({r['id'] for r in records})!=len(records):
         raise HTTPException(422,'备份中存在重复编号')
     with Session(engine) as db:
@@ -271,6 +274,8 @@ def restore_workspace(data: dict,request: Request):
         seen=set()
         for r in revisions+records:
             v=r.get('version',1)
+            if not isinstance(v,int) or not 1<=v<1000000:
+                raise HTTPException(422,'历史版本号不正确')
             key=(r['id'],v)
             if key in seen: continue
             seen.add(key)

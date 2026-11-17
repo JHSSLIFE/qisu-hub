@@ -1,0 +1,13 @@
+{
+  "passed": [
+    "Markdown frontmatter, tags, aliases, double links, and safe rendering",
+    "Identical imports skipped; edited originals retain previous snapshots",
+    "Question → cited evidence → cited draft → original version → export → reload",
+    "Project task completion, persisted state and board/list views",
+    "11 page families at 1440px, 390px and 360px without page overflow",
+    "Startup audio preference, audio preview and complete backup download"
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "badNetwork": []
+}
