@@ -1,0 +1,10 @@
+node_modules/
+.venv/
+dist/
+data/
+__pycache__/
+.pytest_cache/
+*.pyc
+.env
+.asteam-product.log
+test-results/

@@ -1,0 +1,1338 @@
+[
+  {
+    "id": "s1",
+    "kind": "source",
+    "title": "木构营造读书札记",
+    "body": "这是一份虚拟读书札记，供体验研究流程。\n\n## 斗拱与出檐\n斗拱由斗、拱等构件组合，常设置在柱头或柱间。研究斗拱时应结合时代、位置、构件组合及修缮记录，不能仅凭一张照片推断建筑年代。\n\n## 榫卯与梁架\n榫卯是木构件之间的一类连接方式。抬梁与穿斗是理解木构架的常用类型，但具体建筑可能采用混合做法。",
+    "tags": [
+      "虚拟资料",
+      "研究笔记"
+    ],
+    "category": "构件与结构",
+    "era": "",
+    "place": "",
+    "status": "示例资料",
+    "sourceIds": [],
+    "relatedIds": [],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "path": "示例知识库/原始资料/木构营造读书札记.md"
+  },
+  {
+    "id": "s2",
+    "kind": "source",
+    "title": "晋北古建田野手册",
+    "body": "这是一份虚拟田野调查材料，不对应真实勘察结论。\n\n## 调查记录\n调查一座古建筑，首先记录位置、朝向、平面、结构和保存状况，再核对碑刻、地方志与历次修缮记录。照片应保留拍摄位置与日期。\n\n## 观察与判断\n建筑现存形态不一定完全等于初建形态。构件替换、后世增建与修缮均应单独记录。年代判断需要多种证据交叉支持。",
+    "tags": [
+      "虚拟资料",
+      "研究笔记"
+    ],
+    "category": "古建调查",
+    "era": "",
+    "place": "",
+    "status": "示例资料",
+    "sourceIds": [],
+    "relatedIds": [],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "path": "示例知识库/原始资料/晋北古建田野手册.md"
+  },
+  {
+    "id": "s3",
+    "kind": "source",
+    "title": "古建术语整理卡",
+    "body": "这是一份虚拟术语整理材料。\n\n## 开间与进深\n开间通常用于描述建筑正面柱列之间的空间分段，进深描述纵深方向。测量时应明确采用柱中线还是构件外缘。\n\n## 屋顶与等级\n庑殿、歇山、悬山、硬山等名称用于描述屋顶形制。研究屋顶与礼制的关系时，还应考虑地域、时代和建筑用途。",
+    "tags": [
+      "虚拟资料",
+      "研究笔记"
+    ],
+    "category": "营造制度",
+    "era": "",
+    "place": "",
+    "status": "示例资料",
+    "sourceIds": [],
+    "relatedIds": [],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "path": "示例知识库/原始资料/古建术语整理卡.md"
+  },
+  {
+    "id": "s4",
+    "kind": "source",
+    "title": "文献与图像互证工作单",
+    "body": "这是一份虚拟资料考证工作单。\n\n## 证据层次\n原始档案、实测记录、历史照片、研究文章各自回答不同问题。引用时应记录作者、题名、版本、页码或段落，区分原文陈述与研究者推断。\n\n## 冲突处理\n当碑刻年代与构件特征存在差异时，应保留两条线索，检查碑刻所记是否为重修年份，不急于归并成单一结论。",
+    "tags": [
+      "虚拟资料",
+      "研究笔记"
+    ],
+    "category": "资料考证",
+    "era": "",
+    "place": "",
+    "status": "示例资料",
+    "sourceIds": [],
+    "relatedIds": [],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "path": "示例知识库/原始资料/文献与图像互证工作单.md"
+  },
+  {
+    "id": "s5",
+    "kind": "source",
+    "title": "遗产保护讨论纪要",
+    "body": "这是一份虚拟访谈纪要，人物与发言均为示例。\n\n## 保护与使用\n保护古建筑应关注材料、工艺、空间与使用情境。记录传统工艺时，不仅记录动作，也记录材料选择、工具与工匠的判断依据。\n\n## 公众表达\n公众传播应清楚区分已经证实的事实、学界存在争议的观点和便于理解的比喻。严谨不意味着放弃清晰的表达。",
+    "tags": [
+      "虚拟资料",
+      "研究笔记"
+    ],
+    "category": "保护与传承",
+    "era": "",
+    "place": "",
+    "status": "示例资料",
+    "sourceIds": [],
+    "relatedIds": [],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "path": "示例知识库/原始资料/遗产保护讨论纪要.md"
+  },
+  {
+    "id": "s6",
+    "kind": "source",
+    "title": "园林与聚落观察笔记",
+    "body": "这是一份虚拟空间研究笔记。\n\n## 园林观察\n借景、对景、框景等术语帮助观察空间组织，具体分析仍需回到场地、路径、季节与视线。\n\n## 聚落调查\n传统聚落不仅由建筑组成，也包含街巷、水系、公共空间和日常生活。区域比较应使用一致的调查尺度。",
+    "tags": [
+      "虚拟资料",
+      "研究笔记"
+    ],
+    "category": "地域与空间",
+    "era": "",
+    "place": "",
+    "status": "示例资料",
+    "sourceIds": [],
+    "relatedIds": [],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "path": "示例知识库/原始资料/园林与聚落观察笔记.md"
+  },
+  {
+    "id": "k1",
+    "kind": "knowledge",
+    "title": "斗拱：木构建筑的承托与秩序",
+    "body": "斗拱不是一种孤立的装饰，而是一组相互配合的木构件。\n\n## 观察要点\n从位置、层次与组合关系入手，观察斗、拱及相关构件如何组织。将柱头、柱间的做法分别记录，并结合梁架与出檐理解整体。\n\n## 研究提醒\n同一建筑可能经历多次修缮。仅凭斗拱形态判断年代需要谨慎，应与文献和构件调查互证。\n\n## 关联笔记\n可继续阅读 [[榫卯：木构件的连接智慧]] 与 [[抬梁式与穿斗式木构架]]。",
+    "tags": [
+      "斗拱",
+      "木构",
+      "营造法式"
+    ],
+    "category": "构件与结构",
+    "era": "宋代",
+    "place": "山西",
+    "status": "已整理",
+    "sourceIds": [
+      "s1"
+    ],
+    "relatedIds": [
+      "k2",
+      "k3",
+      "k7"
+    ],
+    "favorite": true,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k2",
+    "kind": "knowledge",
+    "title": "榫卯：木构件的连接智慧",
+    "body": "榫与卯通过构件之间的几何配合形成连接。记录榫卯时，应同时描述受力方向、构件位置与加工方式。\n\n## 资料整理\n正面照片、侧面照片与简明示意图应对应同一编号。不要把不同部位的榫卯名称混为一谈。\n\n## 待研究\n实际构造中的做法可能因地区、材料与修缮而变化。",
+    "tags": [
+      "榫卯",
+      "传统工艺"
+    ],
+    "category": "构件与结构",
+    "era": "跨时代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s1"
+    ],
+    "relatedIds": [
+      "k1",
+      "k3"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k3",
+    "kind": "knowledge",
+    "title": "抬梁式与穿斗式木构架",
+    "body": "抬梁与穿斗是观察传统木构架的常用分类。\n\n## 阅读框架\n对照柱、梁、檩之间的支承与连接关系，再观察空间跨度与用材。具体实例中可能存在混合做法。\n\n## 记录方式\n同时保存结构草图、测量位置与原始照片，避免仅保留一个类型名称。",
+    "tags": [
+      "梁架",
+      "抬梁",
+      "穿斗"
+    ],
+    "category": "构件与结构",
+    "era": "跨时代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s1"
+    ],
+    "relatedIds": [
+      "k1",
+      "k2",
+      "k8"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k4",
+    "kind": "knowledge",
+    "title": "佛光寺东大殿：一份调查提纲",
+    "body": "本条是围绕佛光寺东大殿设置的虚拟研究提纲，不是实测报告。\n\n## 研究入口\n分别整理建筑形制、梁架、斗拱、彩画与历史文献。对每条年代陈述核对出处。\n\n## 田野清单\n记录观察位置、构件编号、拍摄日期与资料授权情况。\n\n## 下一步\n将公开资料与真实调查记录导入后再形成考证结论。",
+    "tags": [
+      "佛光寺",
+      "唐代木构",
+      "田野调查"
+    ],
+    "category": "古建档案",
+    "era": "唐代",
+    "place": "山西·五台",
+    "status": "待考证",
+    "sourceIds": [
+      "s2"
+    ],
+    "relatedIds": [
+      "k1",
+      "k5",
+      "k13"
+    ],
+    "favorite": true,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k5",
+    "kind": "knowledge",
+    "title": "南禅寺大殿：建筑观察卡",
+    "body": "这是一份虚拟建筑观察卡。\n\n## 观察维度\n按平面、立面、梁架、斗拱与保存状况分层记录。为资料注明拍摄或出版时间。\n\n## 比较方法\n与同区域建筑比较时，使用相同观察表，并明确哪些部分来自现场，哪些来自文献。",
+    "tags": [
+      "南禅寺",
+      "古建调查"
+    ],
+    "category": "古建档案",
+    "era": "唐代",
+    "place": "山西·五台",
+    "status": "已整理",
+    "sourceIds": [
+      "s2"
+    ],
+    "relatedIds": [
+      "k4",
+      "k1"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-16T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k6",
+    "kind": "knowledge",
+    "title": "应县木塔：结构阅读路径",
+    "body": "本条提供虚拟的木塔结构研究路径。\n\n## 研究切入\n从层间关系、柱网组织与构件连接建立问题清单。区分建筑外观层次和内部结构层次。\n\n## 证据要求\n涉及结构安全的判断需要专业检测资料，本示例不提供安全结论。",
+    "tags": [
+      "木塔",
+      "结构",
+      "遗产保护"
+    ],
+    "category": "古建档案",
+    "era": "辽代",
+    "place": "山西·应县",
+    "status": "已整理",
+    "sourceIds": [
+      "s2"
+    ],
+    "relatedIds": [
+      "k1",
+      "k3",
+      "k17"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-16T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k7",
+    "kind": "knowledge",
+    "title": "《营造法式》的阅读方法",
+    "body": "阅读营造文献，应先确认所用版本，再建立术语与图样的对应关系。\n\n## 建议步骤\n先选一个具体构件问题，再查相关条文与图样；保留原文、解释与个人疑问三个层次。\n\n## 版本意识\n现代整理本、影印本和研究者的释读应分别记录，不将解释当作原文。",
+    "tags": [
+      "营造法式",
+      "古籍",
+      "制度"
+    ],
+    "category": "营造制度",
+    "era": "宋代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s3"
+    ],
+    "relatedIds": [
+      "k1",
+      "k8",
+      "k14"
+    ],
+    "favorite": true,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-16T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k8",
+    "kind": "knowledge",
+    "title": "开间与进深：如何描述空间",
+    "body": "开间和进深用于描述建筑空间组织。\n\n## 测量口径\n记录柱中线或外缘等具体口径，保持同组数据一致。建筑描述应结合平面图，而不只给出一个数量。\n\n## 实践提示\n先为测量图建立编号，再将照片与记录关联到相应位置。",
+    "tags": [
+      "开间",
+      "进深",
+      "测绘"
+    ],
+    "category": "营造制度",
+    "era": "跨时代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s3"
+    ],
+    "relatedIds": [
+      "k3",
+      "k7"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-16T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k9",
+    "kind": "knowledge",
+    "title": "歇山、庑殿与屋顶形制",
+    "body": "屋顶形制可以从屋面、山面和屋脊的组合观察。\n\n## 比较要点\n将整体照片与轮廓草图对照，记录时代、地区及使用功能。\n\n## 考证提示\n不要只依据屋顶名称直接推断建筑等级，仍需结合具体制度和历史情境。",
+    "tags": [
+      "屋顶",
+      "歇山",
+      "庑殿"
+    ],
+    "category": "营造制度",
+    "era": "跨时代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s3"
+    ],
+    "relatedIds": [
+      "k10",
+      "k14"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-15T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k10",
+    "kind": "knowledge",
+    "title": "鸱吻与屋脊装饰观察",
+    "body": "屋脊装饰兼有构造、象征和视觉表达等研究维度。\n\n## 记录方法\n建立构件位置图，记录材质、尺寸及保存状况。名称有差异时保留原始称谓和所依据的资料。",
+    "tags": [
+      "鸱吻",
+      "屋脊",
+      "构件"
+    ],
+    "category": "构件与结构",
+    "era": "跨时代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s3"
+    ],
+    "relatedIds": [
+      "k9",
+      "k11"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-15T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k11",
+    "kind": "knowledge",
+    "title": "彩画：层次、图案与修缮",
+    "body": "彩画记录应关注位置、层次、图案及可见修缮痕迹。\n\n## 整理方法\n统一照片色彩与拍摄距离，保留局部细节和整体位置的对应。\n\n## 待核实\n没有材料分析或历史记录时，不直接把表层彩画年代等同建筑年代。",
+    "tags": [
+      "彩画",
+      "工艺",
+      "修缮"
+    ],
+    "category": "传统工艺",
+    "era": "跨时代",
+    "place": "中国",
+    "status": "待考证",
+    "sourceIds": [
+      "s5"
+    ],
+    "relatedIds": [
+      "k4",
+      "k10",
+      "k18"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-15T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k12",
+    "kind": "knowledge",
+    "title": "碑刻、地方志与建筑年代",
+    "body": "碑刻记载与建筑现存构件可能对应不同历史阶段。\n\n## 核对顺序\n识别原文中的创建、重修、重建等表述，再核对记录对象与时间。\n\n## 证据冲突\n不同来源存在差异时保留各自的原始信息，记录解释及尚未解决的问题。",
+    "tags": [
+      "碑刻",
+      "地方志",
+      "年代"
+    ],
+    "category": "资料考证",
+    "era": "跨时代",
+    "place": "中国",
+    "status": "待考证",
+    "sourceIds": [
+      "s4"
+    ],
+    "relatedIds": [
+      "k13",
+      "k15"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-15T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k13",
+    "kind": "knowledge",
+    "title": "古建筑田野调查清单",
+    "body": "一份可复用的调查清单：\n\n- 基础信息：位置、朝向、用途\n- 空间信息：平面、开间、进深\n- 构造信息：柱网、梁架、斗拱\n- 保存状况：材料、病害、修缮\n- 证据归档：照片编号、来源和日期\n\n观察事实与研究判断分开填写。",
+    "tags": [
+      "田野调查",
+      "测绘",
+      "档案"
+    ],
+    "category": "研究方法",
+    "era": "当代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s2"
+    ],
+    "relatedIds": [
+      "k4",
+      "k12",
+      "k16"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-14T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k14",
+    "kind": "knowledge",
+    "title": "营造术语的时代差异",
+    "body": "同一术语在不同时代或地区可能有不同使用范围。\n\n## 术语卡片\n每张卡片保留原词、原文、版本、现代释义与使用场景。遇到近义词时先建立关联，不直接合并。",
+    "tags": [
+      "术语",
+      "版本",
+      "比较研究"
+    ],
+    "category": "营造制度",
+    "era": "跨时代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s3"
+    ],
+    "relatedIds": [
+      "k7",
+      "k9"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-14T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k15",
+    "kind": "knowledge",
+    "title": "如何建立可追溯的引用",
+    "body": "可追溯的引用应让另一位读者找到同一段资料。\n\n## 最小记录\n题名、作者、版本、页码或段落，以及引用原文。网络资料还应记录链接和访问日期。\n\n## 区分表达\n把原文摘录、概述与个人判断明确区分。",
+    "tags": [
+      "引用",
+      "溯源",
+      "文献"
+    ],
+    "category": "研究方法",
+    "era": "当代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s4"
+    ],
+    "relatedIds": [
+      "k12",
+      "k16",
+      "k20"
+    ],
+    "favorite": true,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-14T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k16",
+    "kind": "knowledge",
+    "title": "历史照片与现状照片对读",
+    "body": "图像对读应先确认拍摄位置、方向和时间。\n\n## 操作步骤\n对齐可辨识的构件或空间节点，标记变化，再核对修缮记录。不要将拍摄角度变化误判为建筑变化。",
+    "tags": [
+      "历史照片",
+      "图像",
+      "考证"
+    ],
+    "category": "研究方法",
+    "era": "当代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s4"
+    ],
+    "relatedIds": [
+      "k13",
+      "k15"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-14T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k17",
+    "kind": "knowledge",
+    "title": "最小干预：保护问题清单",
+    "body": "本条提供保护讨论中的问题清单，不是具体工程建议。\n\n## 讨论重点\n先确认价值与现状，区分必要干预与展示需求。为每项措施记录依据、替代方案和后续观察方式。",
+    "tags": [
+      "遗产保护",
+      "最小干预"
+    ],
+    "category": "保护与传承",
+    "era": "当代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s5"
+    ],
+    "relatedIds": [
+      "k6",
+      "k18"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-13T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k18",
+    "kind": "knowledge",
+    "title": "传统工匠口述资料整理",
+    "body": "整理口述资料，应保留受访者原话、上下文和整理者说明。\n\n## 记录维度\n材料选择、工具、操作步骤、判断依据与地方术语。涉及公开传播时，另行确认授权范围。",
+    "tags": [
+      "工匠",
+      "口述史",
+      "非遗"
+    ],
+    "category": "传统工艺",
+    "era": "当代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s5"
+    ],
+    "relatedIds": [
+      "k2",
+      "k11",
+      "k17"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-13T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k19",
+    "kind": "knowledge",
+    "title": "园林中的借景与框景",
+    "body": "借景与框景提供观察园林空间的角度。\n\n## 实地观察\n沿真实游览路径记录视线、场地高差和季节条件。用路径图关联照片，不把术语直接替代空间分析。",
+    "tags": [
+      "园林",
+      "借景",
+      "空间"
+    ],
+    "category": "地域与空间",
+    "era": "明清",
+    "place": "江南",
+    "status": "已整理",
+    "sourceIds": [
+      "s6"
+    ],
+    "relatedIds": [
+      "k21",
+      "k22"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-13T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k20",
+    "kind": "knowledge",
+    "title": "面向公众的古建内容写作",
+    "body": "好的公众表达可以清晰而严谨。\n\n## 写作结构\n从一个可观察的问题出发，解释构件或空间，再交代资料出处与仍有争议的部分。\n\n## 写作边界\n不把比喻当作事实，不用绝对化措辞替代证据。",
+    "tags": [
+      "科普",
+      "内容创作",
+      "文化传播"
+    ],
+    "category": "内容传播",
+    "era": "当代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s5"
+    ],
+    "relatedIds": [
+      "k15",
+      "k1"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-13T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k21",
+    "kind": "knowledge",
+    "title": "传统聚落的空间观察",
+    "body": "传统聚落包含建筑、街巷、水系、公共空间和日常生活。\n\n## 调查框架\n分别记录空间形态、使用活动与地方叙述，再建立彼此关联。",
+    "tags": [
+      "聚落",
+      "街巷",
+      "空间"
+    ],
+    "category": "地域与空间",
+    "era": "跨时代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s6"
+    ],
+    "relatedIds": [
+      "k19",
+      "k22",
+      "k23"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-12T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k22",
+    "kind": "knowledge",
+    "title": "院落：从平面到日常生活",
+    "body": "院落研究不只关注平面形式，也关注路径、采光和使用方式。\n\n## 观察清单\n入口、庭院、房间、廊道之间如何连接？不同时间谁在使用这些空间？将观察与访谈分别记录。",
+    "tags": [
+      "院落",
+      "民居",
+      "空间"
+    ],
+    "category": "地域与空间",
+    "era": "明清",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s6"
+    ],
+    "relatedIds": [
+      "k8",
+      "k19",
+      "k21"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-12T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k23",
+    "kind": "knowledge",
+    "title": "古建数字档案的命名与归档",
+    "body": "稳定的命名和版本记录有助于长期保存资料。\n\n## 归档约定\n为建筑、构件与文件建立编号，原始资料与整理稿分开。记录修改时间与依据，定期导出备份。",
+    "tags": [
+      "数字档案",
+      "归档",
+      "知识管理"
+    ],
+    "category": "研究方法",
+    "era": "当代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s4"
+    ],
+    "relatedIds": [
+      "k13",
+      "k15",
+      "k24"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-12T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "k24",
+    "kind": "knowledge",
+    "title": "从知识卡片到研究专题",
+    "body": "围绕研究问题组织知识卡片，比单纯积累资料更容易形成成果。\n\n## 工作路径\n提出问题 → 找到来源 → 建立关联 → 记录考证 → 形成稿件。保留暂时不能回答的问题，等待新的证据。",
+    "tags": [
+      "专题",
+      "研究",
+      "知识图谱"
+    ],
+    "category": "内容传播",
+    "era": "当代",
+    "place": "中国",
+    "status": "已整理",
+    "sourceIds": [
+      "s4"
+    ],
+    "relatedIds": [
+      "k20",
+      "k23"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-12T09:00:00Z",
+    "version": 1,
+    "example": true
+  },
+  {
+    "id": "e1",
+    "kind": "expert",
+    "title": "沈知远",
+    "body": "## 研究简介\n这是一位用于演示档案关联的虚构研究者，不代表任何真实人物或机构。\n\n## 研究方向\n古建筑与营造制度。关注资料的长期积累、田野观察和面向公众的文化表达。\n\n## 档案说明\n姓名、经历与观点均为虚拟内容，真实专家资料导入后可替换。",
+    "tags": [
+      "古建筑",
+      "营造制度"
+    ],
+    "category": "古建筑与营造制度",
+    "era": "",
+    "place": "",
+    "status": "虚拟档案",
+    "sourceIds": [
+      "s1"
+    ],
+    "relatedIds": [
+      "k1",
+      "k3",
+      "k7"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "role": "木构营造研究者",
+    "initial": "沈",
+    "quote": "从一榫一卯中，读懂时间留下的结构。"
+  },
+  {
+    "id": "e2",
+    "kind": "expert",
+    "title": "陆青禾",
+    "body": "## 研究简介\n这是一位用于演示档案关联的虚构研究者，不代表任何真实人物或机构。\n\n## 研究方向\n文化遗产保护。关注资料的长期积累、田野观察和面向公众的文化表达。\n\n## 档案说明\n姓名、经历与观点均为虚拟内容，真实专家资料导入后可替换。",
+    "tags": [
+      "文化遗产保护"
+    ],
+    "category": "文化遗产保护",
+    "era": "",
+    "place": "",
+    "status": "虚拟档案",
+    "sourceIds": [
+      "s5"
+    ],
+    "relatedIds": [
+      "k11",
+      "k17",
+      "k18"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "role": "遗产保护研究者",
+    "initial": "陆",
+    "quote": "让保护成为对历史更细致的理解。"
+  },
+  {
+    "id": "e3",
+    "kind": "expert",
+    "title": "林见山",
+    "body": "## 研究简介\n这是一位用于演示档案关联的虚构研究者，不代表任何真实人物或机构。\n\n## 研究方向\n田野调查与建筑史。关注资料的长期积累、田野观察和面向公众的文化表达。\n\n## 档案说明\n姓名、经历与观点均为虚拟内容，真实专家资料导入后可替换。",
+    "tags": [
+      "田野调查",
+      "建筑史"
+    ],
+    "category": "田野调查与建筑史",
+    "era": "",
+    "place": "",
+    "status": "虚拟档案",
+    "sourceIds": [
+      "s2"
+    ],
+    "relatedIds": [
+      "k4",
+      "k5",
+      "k13"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "role": "古建田野研究者",
+    "initial": "林",
+    "quote": "回到现场，让观察先于判断。"
+  },
+  {
+    "id": "e4",
+    "kind": "expert",
+    "title": "顾南音",
+    "body": "## 研究简介\n这是一位用于演示档案关联的虚构研究者，不代表任何真实人物或机构。\n\n## 研究方向\n园林与传统聚落。关注资料的长期积累、田野观察和面向公众的文化表达。\n\n## 档案说明\n姓名、经历与观点均为虚拟内容，真实专家资料导入后可替换。",
+    "tags": [
+      "园林",
+      "传统聚落"
+    ],
+    "category": "园林与传统聚落",
+    "era": "",
+    "place": "",
+    "status": "虚拟档案",
+    "sourceIds": [
+      "s6"
+    ],
+    "relatedIds": [
+      "k19",
+      "k21",
+      "k22"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "role": "空间文化研究者",
+    "initial": "顾",
+    "quote": "在街巷与庭院之间，寻找生活的记忆。"
+  },
+  {
+    "id": "p1",
+    "kind": "project",
+    "title": "晋北木构建筑研究",
+    "body": "围绕木构构件、营造文献与田野观察，整理一组可追溯的研究卡片。",
+    "tags": [
+      "山西",
+      "木构",
+      "专题"
+    ],
+    "category": "古建研究",
+    "era": "",
+    "place": "",
+    "status": "进行中",
+    "sourceIds": [],
+    "relatedIds": [
+      "k1",
+      "k4",
+      "k5",
+      "k7"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "due": "2026-12-05"
+  },
+  {
+    "id": "p2",
+    "kind": "project",
+    "title": "把古建筑讲给更多人",
+    "body": "从专业资料出发，制作三篇兼具可读性与来源依据的古建科普文章。",
+    "tags": [
+      "科普",
+      "内容生产"
+    ],
+    "category": "内容策划",
+    "era": "",
+    "place": "",
+    "status": "进行中",
+    "sourceIds": [],
+    "relatedIds": [
+      "k20",
+      "k1",
+      "k19"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "due": "2026-12-12"
+  },
+  {
+    "id": "p3",
+    "kind": "project",
+    "title": "传统聚落资料归档",
+    "body": "整理聚落调查目录及引用规范。",
+    "tags": [
+      "聚落",
+      "归档"
+    ],
+    "category": "资料整理",
+    "era": "",
+    "place": "",
+    "status": "已完成",
+    "sourceIds": [],
+    "relatedIds": [
+      "k21",
+      "k23"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "due": "2026-11-15"
+  },
+  {
+    "id": "t1",
+    "kind": "task",
+    "title": "整理斗拱术语卡片",
+    "body": "",
+    "tags": [],
+    "category": "",
+    "era": "",
+    "place": "",
+    "status": "已完成",
+    "sourceIds": [],
+    "relatedIds": [
+      "k1"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "projectId": "p1",
+    "due": "2026-11-25"
+  },
+  {
+    "id": "t2",
+    "kind": "task",
+    "title": "对照两份建筑调查记录",
+    "body": "",
+    "tags": [],
+    "category": "",
+    "era": "",
+    "place": "",
+    "status": "进行中",
+    "sourceIds": [],
+    "relatedIds": [
+      "k4"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "projectId": "p1",
+    "due": "2026-11-25"
+  },
+  {
+    "id": "t3",
+    "kind": "task",
+    "title": "核对碑刻年代与重修记录",
+    "body": "",
+    "tags": [],
+    "category": "",
+    "era": "",
+    "place": "",
+    "status": "待开始",
+    "sourceIds": [],
+    "relatedIds": [
+      "k12"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "projectId": "p1",
+    "due": "2026-11-25"
+  },
+  {
+    "id": "t4",
+    "kind": "task",
+    "title": "汇总木构专题引用清单",
+    "body": "",
+    "tags": [],
+    "category": "",
+    "era": "",
+    "place": "",
+    "status": "待开始",
+    "sourceIds": [],
+    "relatedIds": [
+      "k15"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "projectId": "p1",
+    "due": "2026-11-25"
+  },
+  {
+    "id": "t5",
+    "kind": "task",
+    "title": "完成斗拱科普文章初稿",
+    "body": "",
+    "tags": [],
+    "category": "",
+    "era": "",
+    "place": "",
+    "status": "进行中",
+    "sourceIds": [],
+    "relatedIds": [
+      "k20"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "projectId": "p2",
+    "due": "2026-11-25"
+  },
+  {
+    "id": "t6",
+    "kind": "task",
+    "title": "核对文中每一处引用",
+    "body": "",
+    "tags": [],
+    "category": "",
+    "era": "",
+    "place": "",
+    "status": "待开始",
+    "sourceIds": [],
+    "relatedIds": [
+      "k15"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "projectId": "p2",
+    "due": "2026-11-25"
+  },
+  {
+    "id": "t7",
+    "kind": "task",
+    "title": "确定园林观察选题",
+    "body": "",
+    "tags": [],
+    "category": "",
+    "era": "",
+    "place": "",
+    "status": "已完成",
+    "sourceIds": [],
+    "relatedIds": [
+      "k19"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "projectId": "p2",
+    "due": "2026-11-25"
+  },
+  {
+    "id": "t8",
+    "kind": "task",
+    "title": "完成资料命名规范",
+    "body": "",
+    "tags": [],
+    "category": "",
+    "era": "",
+    "place": "",
+    "status": "已完成",
+    "sourceIds": [],
+    "relatedIds": [
+      "k23"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "projectId": "p3",
+    "due": "2026-11-25"
+  },
+  {
+    "id": "v1",
+    "kind": "evidence",
+    "title": "能否仅凭斗拱判断建筑年代？",
+    "body": "## 当前判断\n不能只依据斗拱形态给出确定年代。需要同时核对现存构件、修缮记录和文献。\n\n## 已有线索\n示例读书札记提醒：位置、组合与替换情况均影响判断。\n\n## 下一步\n补充真实测绘资料和可靠出版物，再判断。",
+    "tags": [
+      "方法考证"
+    ],
+    "category": "",
+    "era": "",
+    "place": "",
+    "status": "待核实",
+    "sourceIds": [
+      "s1"
+    ],
+    "relatedIds": [
+      "k1",
+      "k4"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "citations": [
+      {
+        "id": "s1",
+        "version": 1,
+        "title": "木构营造读书札记",
+        "quote": "示例资料中的方法说明；正式使用前请核对真实来源。"
+      }
+    ],
+    "projectId": "p1"
+  },
+  {
+    "id": "v2",
+    "kind": "evidence",
+    "title": "碑刻所记是初建还是重修？",
+    "body": "## 待解决问题\n一条年代记录可能指向创建，也可能指向后世重修。\n\n## 分歧记录\n应保留碑文原词与构件观察，避免过早合并结论。",
+    "tags": [
+      "方法考证"
+    ],
+    "category": "",
+    "era": "",
+    "place": "",
+    "status": "存在争议",
+    "sourceIds": [
+      "s4"
+    ],
+    "relatedIds": [
+      "k12",
+      "k16"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "citations": [
+      {
+        "id": "s4",
+        "version": 1,
+        "title": "文献与图像互证工作单",
+        "quote": "示例资料中的方法说明；正式使用前请核对真实来源。"
+      }
+    ],
+    "projectId": "p1"
+  },
+  {
+    "id": "v3",
+    "kind": "evidence",
+    "title": "引用卡应保留哪些信息？",
+    "body": "## 整理判断\n引用保留题名、来源版本、段落定位与摘录，便于其他研究者复查。\n\n本记录仅验证示例资料内部的一致性，不代表学术审定。",
+    "tags": [
+      "方法考证"
+    ],
+    "category": "",
+    "era": "",
+    "place": "",
+    "status": "有依据",
+    "sourceIds": [
+      "s4"
+    ],
+    "relatedIds": [
+      "k15",
+      "k23"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "citations": [
+      {
+        "id": "s4",
+        "version": 1,
+        "title": "文献与图像互证工作单",
+        "quote": "示例资料中的方法说明；正式使用前请核对真实来源。"
+      }
+    ],
+    "projectId": "p1"
+  },
+  {
+    "id": "d1",
+    "kind": "draft",
+    "title": "斗拱，不止是屋檐下的精巧",
+    "body": "## 从屋檐下的一组木构件说起\n当我们抬头看向古建筑的屋檐，常常会注意到层层叠叠的斗拱。它们怎样组织，又应该怎样观察？\n\n## 把构件放回整体\n理解斗拱，需要同时观察它所在的位置、与梁架的关系，以及建筑经历过的修缮。[1]\n\n## 留一点问题给现场\n一张照片可以引出问题，却不应成为判断年代的唯一证据。下一次看古建，不妨先记录，再下结论。\n\n> 虚拟示例稿，尚未进行真实资料审校。",
+    "tags": [
+      "木构",
+      "科普"
+    ],
+    "category": "",
+    "era": "",
+    "place": "",
+    "status": "草稿",
+    "sourceIds": [
+      "s1"
+    ],
+    "relatedIds": [
+      "k1",
+      "k20"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "format": "科普文章",
+    "projectId": "p2",
+    "citations": [
+      {
+        "id": "s1",
+        "version": 1,
+        "title": "木构营造读书札记",
+        "quote": "研究斗拱时应结合时代、位置、构件组合及修缮记录，不能仅凭一张照片推断建筑年代。"
+      }
+    ]
+  },
+  {
+    "id": "d2",
+    "kind": "draft",
+    "title": "一场古建田野调查，从什么开始？",
+    "body": "## 先把问题带到现场\n古建调查可以从一份清晰的清单开始。位置、朝向、平面和保存状况，是建立档案的起点。[1]\n\n## 让照片与笔记对应\n记录每张照片的构件位置和日期，把观察事实与个人判断分开保存。\n\n> 虚拟示例提纲，等待补充现场资料。",
+    "tags": [
+      "田野",
+      "方法"
+    ],
+    "category": "",
+    "era": "",
+    "place": "",
+    "status": "待审阅",
+    "sourceIds": [
+      "s2"
+    ],
+    "relatedIds": [
+      "k13"
+    ],
+    "favorite": false,
+    "created": "2026-11-17T09:00:00Z",
+    "updated": "2026-11-17T09:00:00Z",
+    "version": 1,
+    "example": true,
+    "format": "研究提纲",
+    "projectId": "p1",
+    "citations": [
+      {
+        "id": "s2",
+        "version": 1,
+        "title": "晋北古建田野手册",
+        "quote": "调查一座古建筑，首先记录位置、朝向、平面、结构和保存状况，再核对碑刻、地方志与历次修缮记录。"
+      }
+    ]
+  }
+]

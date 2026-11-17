@@ -1,0 +1,3 @@
+name = "耆宿说 · 文化知识工作台"
+start = "sh start.sh"
+health = "/api/health"
