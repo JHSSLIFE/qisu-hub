@@ -6,6 +6,7 @@ import {Icon,Modal,type IconName} from './ui';
 import {Home,LibraryPage,ExpertsPage,SearchPage,GraphPage,EvidencePage,DraftsPage,ProjectsPage,SettingsPage,ExtrasPage,TrashPage} from './pages';
 import {Detail,Editor,ImportDialog} from './overlays';
 import './style.css';
+import './theme.css';
 
 const researchNav:{id:View;icon:IconName;label:string}[]=[{id:'home',icon:'LayoutDashboard',label:'研究工作台'},{id:'library',icon:'Library',label:'知识库'},{id:'experts',icon:'Users',label:'专家档案'},{id:'graph',icon:'Network',label:'知识图谱'},{id:'assistant',icon:'Sparkles',label:'智能检索'},{id:'evidence',icon:'ShieldCheck',label:'资料考证'}];
 const workNav:{id:View;icon:IconName;label:string}[]=[{id:'create',icon:'Feather',label:'内容创作'},{id:'projects',icon:'FolderKanban',label:'研究项目'}];
