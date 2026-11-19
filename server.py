@@ -9,6 +9,7 @@ import uuid
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request, Response
@@ -287,6 +288,7 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=1,max_length=2000)
     source_ids: list[str] = Field(default_factory=list,max_length=30)
     purpose: str = 'answer'
+    scope: Literal['all','knowledge','source','expert'] = 'all'
 
 def retrieve(question: str, records: list[dict], selected: list[str]):
     candidates=[r for r in records if r['kind'] in ('knowledge','source','expert') and not r.get('archived') and (not selected or r['id'] in selected)]
@@ -313,7 +315,8 @@ async def assistant(data: AskRequest,request: Request):
     queue.append(tick)
     with Session(engine) as db:
         records=[json.loads(r.payload) for r in db.scalars(select(Record).where(Record.workspace_id==space))]
-    selected=retrieve(data.question,records,data.source_ids)
+    scoped=[r for r in records if data.scope=='all' or r['kind']==data.scope]
+    selected=retrieve(data.question,scoped,data.source_ids)
     citations=[{'id':r['id'],'version':r['version'],'title':r['title'],'quote':re.sub(r'[#*>\[\]]','',r.get('body','')).strip()[:280]} for r in selected]
     if not selected:
         return {'text':'当前资料不足以回答这个问题。\n\n试着使用更具体的关键词，或先导入相关笔记。没有找到依据时，我不会补写史实。','citations':[],'mode':'extract'}

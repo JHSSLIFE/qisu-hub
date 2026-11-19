@@ -1,0 +1,14 @@
+{
+  "date": "2026-11-19T01:31:25.577Z",
+  "backend": "svg",
+  "checks": [
+    "Home entry → real R3F building → explode, wireframe, component selection and reset",
+    "3D node selection → persisted source detail, focus, zoom, search empty state and category filter",
+    "Saved source/knowledge links enter the graph; source endpoints open correctly; reload persists",
+    "3 scene modes at 1440/1024/768/390/360px, plus reduced-motion layout"
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "network": [],
+  "webglNote": "Shared browser has WebGL disabled; same R3F scene verified with SVGRenderer. GPU path not browser-verified here."
+}

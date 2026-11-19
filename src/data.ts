@@ -62,9 +62,9 @@ export const repo={
     const previous=localState;localState={records:structuredClone(data.records),revisions:structuredClone(data.revisions||data.records)};
     try{await persist();return structuredClone(localState.records);}catch(e){localState=previous;throw e;}
   },
-  async ask(question:string,rows:Row[],ids:string[]=[],purpose='answer'):Promise<Answer>{
-    if(!offline)return api('assistant',{question,source_ids:ids,purpose});
-    const hits=rank(rows.filter(r=>['knowledge','source','expert'].includes(r.kind)&&(!ids.length||ids.includes(r.id))),question,Boolean(ids.length)).slice(0,5);
+  async ask(question:string,rows:Row[],ids:string[]=[],purpose='answer',scope='all'):Promise<Answer>{
+    if(!offline)return api('assistant',{question,source_ids:ids,purpose,scope});
+    const hits=rank(rows.filter(r=>['knowledge','source','expert'].includes(r.kind)&&(scope==='all'||r.kind===scope)&&(!ids.length||ids.includes(r.id))),question,Boolean(ids.length)).slice(0,5);
     const citations=hits.map(r=>({id:r.id,version:r.version,title:r.title,quote:r.body.replace(/[#*>]/g,'').trim().slice(0,280)}));
     return {mode:'extract',citations,text:hits.length?'## 找到的资料线索\n\n'+citations.map((c,i)=>'### '+(i+1)+'. '+c.title+'\n'+c.quote+' ['+(i+1)+']').join('\n\n')+'\n\n## 继续研究\n以上为原文摘录。请结合上下文核对；示例内容不作为正式学术依据。':'当前资料不足以回答这个问题。\n\n试着使用更具体的关键词，或先导入相关笔记。没有找到依据时，我不会补写史实。'};
   }

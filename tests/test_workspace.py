@@ -85,3 +85,18 @@ def test_no_evidence_and_extract_fallback(monkeypatch):
     assert result['mode']=='extract' and result['citations']
     keys={r['id'] for r in records(c)}
     assert all(citation['id'] in keys for citation in result['citations'])
+
+def test_assistant_scope_with_large_library(monkeypatch):
+    monkeypatch.delenv('OPENAI_API_KEY',raising=False)
+    c=client()
+    template=next(r for r in records(c) if r['id']=='k1')
+    batch=[{**template,'id':f'scoped_{i}','title':f'斗拱新增记录{i}','version':0} for i in range(40)]
+    assert c.post('/api/imports',json={'records':batch},headers=HEADERS).status_code==200
+    result=c.post('/api/assistant',json={'question':'斗拱','scope':'knowledge'},headers=HEADERS)
+    assert result.status_code==200
+    kinds={r['id']:r['kind'] for r in records(c)}
+    assert result.json()['citations']
+    assert all(kinds[citation['id']]=='knowledge' for citation in result.json()['citations'])
+    source=c.post('/api/assistant',json={'question':'木构','scope':'source'},headers=HEADERS).json()
+    assert source['citations'] and all(kinds[x['id']]=='source' for x in source['citations'])
+    assert c.post('/api/assistant',json={'question':'斗拱','scope':'draft'},headers=HEADERS).status_code==422

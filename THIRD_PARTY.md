@@ -5,6 +5,8 @@
 | 组件 | 用途 | 上游与许可证 |
 | --- | --- | --- |
 | React / React DOM | 界面 | https://github.com/facebook/react · MIT |
+| React Three Fiber | 声明式三维场景与交互 | https://github.com/pmndrs/react-three-fiber · MIT |
+| Three.js / OrbitControls / SVGRenderer | GPU/矢量渲染、空间操作、无显卡路径 | https://github.com/mrdoob/three.js · MIT |
 | Lucide | 一致的矢量图标 | https://github.com/lucide-icons/lucide · ISC |
 | markdown-it | Markdown 解析 | https://github.com/markdown-it/markdown-it · MIT |
 | DOMPurify | 内容清理 | https://github.com/cure53/DOMPurify · Apache-2.0 或 MPL-2.0 |
@@ -13,4 +15,4 @@
 | SQLAlchemy | 数据访问 | https://github.com/sqlalchemy/sqlalchemy · MIT |
 | Vite / vite-plugin-singlefile | 单文件构建 | https://github.com/vitejs/vite · MIT；https://github.com/richardtallent/vite-plugin-singlefile · MIT |
 
-建筑线描、界面视觉、示例笔记、虚构人物与游戏内容为本项目原创。
+建筑线描、木构概念模型、图谱布局、界面视觉、示例笔记、虚构人物与游戏内容为本项目原创。
