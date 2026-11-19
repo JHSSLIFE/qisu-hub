@@ -13,7 +13,7 @@
 
 技术栈为 React 19 + TypeScript + Vite、React Three Fiber 9 + Three.js、FastAPI + SQLAlchemy + SQLite。前端生产构建为自包含 HTML，也提供离线 IndexedDB 体验。无 WebGL 时同一 R3F 场景通过 SVGRenderer 绘制，仍支持旋转与拆解。
 
-验证：`npm run check`、`npm run build`、`.venv/bin/python -m pytest -q`。浏览器回归运行 `node tests/browser-flow.cjs`、`node tests/browser-3d.cjs`、`node tests/browser-final.cjs`，只连接共享浏览器。
+验证：`npm run check`、`npm run build`、`.venv/bin/python -m pytest -q`。浏览器回归运行 `node tests/browser-flow.cjs`、`node tests/browser-3d.cjs`、`node tests/browser-final.cjs`、`node tests/browser-gestures.cjs`，只连接共享浏览器。
 
 启动由 app.toml 和平台管理，读取 PORT 并监听 0.0.0.0。Python 依赖锁定在 requirements.lock，前端锁定在 package-lock.json。不提交 data、dist、.venv、node_modules 或任何凭据。模型配置可由部署者使用现有服务端环境变量；默认不要求外部模型服务。
 
