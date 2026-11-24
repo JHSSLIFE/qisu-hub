@@ -1,0 +1,53 @@
+name: QISU HUB checks
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: npm ci --include=dev
+      - run: npm run check
+      - run: npm run build
+      - run: python -m pip install -r requirements.lock
+      - run: python -m pytest -q
+      - name: Validate standalone launcher and clean release archives
+        run: |
+          python -m py_compile launch.py scripts/build_release.py scripts/verify_package.py
+          python scripts/verify_package.py
+          python scripts/build_release.py --output release
+      - name: Build and verify the non-root Docker runtime
+        run: |
+          docker build --tag qisu-hub:ci .
+          docker run --rm -i --read-only --tmpfs /tmp qisu-hub:ci python - <<'PY'
+          import os
+          from fastapi.testclient import TestClient
+          import server
+          assert os.geteuid() != 0
+          with TestClient(server.app) as client:
+              assert client.get('/api/health').json() == {'ok': True}
+              assert client.get('/api/bootstrap').status_code == 200
+              for path in ('/', '/app.html', '/manifest.webmanifest', '/sw.js', '/icons/icon-192.png', '/icons/icon-512.png'):
+                  assert client.get(path).status_code == 200, path
+              for path in ('/.env', '/server.py', '/data/research.sqlite3'):
+                  assert client.get(path).status_code == 404, path
+          print('Docker runtime, database, PWA assets and private-path checks passed.')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qisu-hub-packages
+          path: release/
+          retention-days: 14

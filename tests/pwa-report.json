@@ -1,0 +1,257 @@
+{
+  "startedAt": "2026-11-24T08:15:17.834Z",
+  "base": "http://127.0.0.1:8800/",
+  "checks": [
+    "app.html explicitly uses local storage and QISU HUB branding",
+    "Manifest, 192/512 icons, app start URL, scoped active service worker",
+    "Controlled offline reload, new draft save, offline reload and original body recovery",
+    "Two-window stale edit is rejected; saved data and unsaved editor text are preserved",
+    "Backup keeps legacy format and includes newest records and full history from both windows",
+    "Ten page families at 1440/390/360px, mobile More navigation and focused continuous typing",
+    "Injected IndexedDB request failure shows recovery UI and makes zero seed writes; original data remains unchanged",
+    "Mocked /qisu-hub/ deployment resolves app, manifest, icons and SW registration within its own directory",
+    "No API requests, unhandled errors, console errors or failed HTTP responses"
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "badNetwork": [],
+  "apiRequests": [],
+  "install": {
+    "manifest": {
+      "id": "./app.html",
+      "name": "耆宿说数字工作台 QISU HUB",
+      "short_name": "QISU HUB",
+      "description": "文化遗产资料、考证与创作的个人数字工作台",
+      "lang": "zh-CN",
+      "start_url": "./app.html",
+      "scope": "./",
+      "display": "standalone",
+      "background_color": "#f6f5f1",
+      "theme_color": "#a84335",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any maskable"
+        },
+        {
+          "src": "./icons/icon-512.png",
+          "sizes": "512x512",
+          "type": "image/png",
+          "purpose": "any maskable"
+        }
+      ]
+    },
+    "manifestURL": "http://127.0.0.1:8800/manifest.webmanifest",
+    "icons": [
+      {
+        "src": "./icons/icon-192.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "any maskable",
+        "url": "http://127.0.0.1:8800/icons/icon-192.png",
+        "status": 200,
+        "bytes": 741
+      },
+      {
+        "src": "./icons/icon-512.png",
+        "sizes": "512x512",
+        "type": "image/png",
+        "purpose": "any maskable",
+        "url": "http://127.0.0.1:8800/icons/icon-512.png",
+        "status": 200,
+        "bytes": 2155
+      }
+    ],
+    "startURL": "http://127.0.0.1:8800/app.html",
+    "scope": "http://127.0.0.1:8800/",
+    "registrationScope": "http://127.0.0.1:8800/",
+    "workerURL": "http://127.0.0.1:8800/sw.js",
+    "secureContext": true
+  },
+  "layout": [
+    {
+      "width": 1440,
+      "route": "home",
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "library",
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "experts",
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "graph",
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "assistant",
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "evidence",
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "create",
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "projects",
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "settings",
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "trash",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "home",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "library",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "experts",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "graph",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "assistant",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "evidence",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "create",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "projects",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "settings",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "trash",
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "route": "home",
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "route": "library",
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "route": "experts",
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "route": "graph",
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "route": "assistant",
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "route": "evidence",
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "route": "create",
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "route": "projects",
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "route": "settings",
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "route": "trash",
+      "overflow": false
+    }
+  ],
+  "nested": {
+    "local": true,
+    "manifestURL": "http://127.0.0.1:8800/qisu-hub/manifest.webmanifest",
+    "startURL": "http://127.0.0.1:8800/qisu-hub/app.html",
+    "scope": "http://127.0.0.1:8800/qisu-hub/",
+    "worker": {
+      "url": "http://127.0.0.1:8800/qisu-hub/sw.js",
+      "scope": "./"
+    },
+    "icons": [
+      {
+        "url": "http://127.0.0.1:8800/qisu-hub/icons/icon-192.png",
+        "status": 200
+      },
+      {
+        "url": "http://127.0.0.1:8800/qisu-hub/icons/icon-512.png",
+        "status": 200
+      }
+    ],
+    "served": [
+      "app.html",
+      "manifest.webmanifest",
+      "icons/icon-192.png",
+      "manifest.webmanifest",
+      "icons/icon-192.png",
+      "icons/icon-512.png"
+    ],
+    "limitation": "Static nested routes are mocked; actual SW installation is verified at the managed root URL."
+  },
+  "passed": true,
+  "cleanedTestRecords": true,
+  "finishedAt": "2026-11-24T08:15:46.874Z"
+}

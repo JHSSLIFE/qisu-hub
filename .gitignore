@@ -8,3 +8,6 @@ __pycache__/
 .env
 .asteam-product.log
 test-results/
+
+release/
+*.spec

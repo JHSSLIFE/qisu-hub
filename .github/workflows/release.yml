@@ -1,0 +1,43 @@
+name: QISU HUB release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: qisu-hub-release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --include=dev
+      - run: npm run check && npm run build
+      - run: python scripts/verify_package.py
+      - name: Package standalone downloads
+        run: python scripts/build_release.py --output release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qisu-hub-downloads
+          path: release/
+      - name: Publish a tagged GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" release/* --title "耆宿说数字工作台 QISU HUB $GITHUB_REF_NAME" --generate-notes --verify-tag
+          fi
