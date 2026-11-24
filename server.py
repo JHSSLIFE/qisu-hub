@@ -355,11 +355,15 @@ async def assistant(data: AskRequest,request: Request):
 @app.get('/{path:path}')
 def frontend(path: str):
     # Never expose source code, databases, dependency folders, or environment files.
-    if path and path not in ('index.html','preview.html','favicon.ico'):
-        raise HTTPException(404,'页面不存在')
-    index=ROOT/'dist'/'index.html'
-    if not index.exists(): raise HTTPException(503,'页面正在准备中')
-    return FileResponse(index,media_type='text/html',headers={'Cache-Control':'no-cache'})
+    allowed={'':'index.html','index.html':'index.html','preview.html':'index.html',
+             'app.html':'app.html','manifest.webmanifest':'manifest.webmanifest','sw.js':'sw.js',
+             'icons/icon-192.png':'icons/icon-192.png','icons/icon-512.png':'icons/icon-512.png',
+             'favicon.ico':'icons/icon-192.png'}
+    if path not in allowed: raise HTTPException(404,'页面不存在')
+    asset=ROOT/'dist'/allowed[path]
+    if not asset.is_file(): raise HTTPException(503,'页面正在准备中')
+    mime={'.html':'text/html','.webmanifest':'application/manifest+json','.js':'application/javascript','.png':'image/png'}
+    return FileResponse(asset,media_type=mime.get(asset.suffix),headers={'Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'})
 
 if __name__=='__main__':
     import uvicorn

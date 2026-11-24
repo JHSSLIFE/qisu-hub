@@ -619,3 +619,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
   .detail-tabs { gap: 18px; }
   .detail-tabs > button { font-size: 12px; }
 }
+
+/* Installed application and mobile guidance share the workspace palette. */
+.install-instructions {margin:16px 0;color:var(--text-secondary,#68645d);font-size:13px;line-height:1.85}
+.install-instructions p{margin:8px 0}.install-panel>.btn{display:inline-flex;text-decoration:none;margin-bottom:8px}
+@media(max-width:600px){.install-panel .settings-row{flex-wrap:wrap}.install-panel .settings-row>div:nth-child(2){min-width:180px;flex:1}.install-panel .settings-row>.btn{margin-left:48px}.install-instructions{font-size:14px}}

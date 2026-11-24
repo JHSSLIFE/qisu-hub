@@ -76,6 +76,26 @@ def test_guards_and_malformed_data():
     stranger=TestClient(server.app)
     assert stranger.get('/api/export').status_code==401
 
+def test_packaged_assets_and_static_boundary(tmp_path,monkeypatch):
+    # Use an isolated fake build; CI does not need a production bundle for backend tests.
+    dist=tmp_path/'dist';(dist/'icons').mkdir(parents=True)
+    for name,text in {'index.html':'online','app.html':'local',
+                      'manifest.webmanifest':'{"start_url":"./app.html"}',
+                      'sw.js':'// static worker','icons/icon-192.png':'png'}.items():
+        (dist/name).write_text(text)
+    monkeypatch.setattr(server,'ROOT',tmp_path)
+    c=TestClient(server.app)
+    assert c.get('/').text=='online'
+    assert c.get('/preview.html').text=='online'
+    assert c.get('/app.html').text=='local'
+    assert c.get('/manifest.webmanifest').headers['content-type'].startswith('application/manifest+json')
+    worker=c.get('/sw.js')
+    assert worker.status_code==200
+    assert worker.headers['content-type'].startswith('application/javascript')
+    assert worker.headers['cache-control']=='no-cache'
+    for name in ['/.git/config','/.env','/launch.py','/server.py','/data/research.sqlite3','/icons/other.png']:
+        assert c.get(name).status_code==404
+
 def test_no_evidence_and_extract_fallback(monkeypatch):
     monkeypatch.delenv('OPENAI_API_KEY',raising=False)
     c=client()

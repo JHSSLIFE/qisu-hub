@@ -10,16 +10,33 @@ export interface Row {
   aliases?:string[];citations?:Citation[];unresolvedLinks?:string[];[key:string]:unknown;
 }
 export interface Answer {text:string;citations:Citation[];mode:'ai'|'extract';notice?:string}
-declare global {interface Window {asteamPreview?:{ready:()=>void;fail:(message:string)=>void};__qisushuoReady?:boolean;webkitAudioContext?:typeof AudioContext}}
-export const offline = Boolean(window.asteamPreview)||location.protocol==='file:'||location.pathname.endsWith('/preview.html');
+declare global {interface Window {asteamPreview?:{ready:()=>void;fail:(message:string)=>void};__qisushuoReady?:boolean;__QISU_LOCAL__?:boolean;webkitAudioContext?:typeof AudioContext}}
+export const offline = Boolean(window.__QISU_LOCAL__||window.asteamPreview)||location.protocol==='file:'||/\/(?:app|preview)\.html$/.test(location.pathname);
 export const initialRows = seed as Row[];
 export const uid = ()=>'r_'+(typeof crypto.randomUUID==='function'?crypto.randomUUID().replaceAll('-',''):Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join(''));
 export const newRow = (kind:Kind,title:string,extra:Partial<Row>={}):Row=>({id:uid(),kind,title,body:'',tags:[],category:'',era:'',place:'',status:kind==='draft'?'草稿':kind==='evidence'?'待核实':kind==='task'?'待开始':kind==='project'?'进行中':'已整理',sourceIds:[],relatedIds:[],favorite:false,created:new Date().toISOString(),updated:new Date().toISOString(),version:0,example:false,...extra});
 type Backup = {format:'qisushuo-backup';schema:1;exported_at:string;records:Row[];revisions:Row[]};
-let localState:{records:Row[];revisions:Row[]};
+type LocalState={records:Row[];revisions:Row[]};
 let localDb:IDBDatabase;
-async function persist(){
-  await new Promise<void>((resolve,reject)=>{const tx=localDb.transaction('workspace','readwrite');tx.objectStore('workspace').put(structuredClone(localState),'state');tx.oncomplete=()=>resolve();tx.onerror=()=>reject(new Error('设备存储空间不足，请导出备份后重试'));});
+// Read and write in the same transaction: another window cannot overwrite unseen records.
+function transact<T>(write:boolean,change:(state:LocalState|undefined)=>{state:LocalState;value:T}):Promise<T>{
+  return new Promise((resolve,reject)=>{
+    const tx=localDb.transaction('workspace',write?'readwrite':'readonly'),store=tx.objectStore('workspace');
+    let result:T,reason:unknown;
+    const req=store.get('state');
+    req.onsuccess=()=>{try{const next=change(req.result);result=structuredClone(next.value);if(write)store.put(next.state,'state');}catch(e){reason=e;tx.abort();}};
+    tx.oncomplete=()=>resolve(result);
+    tx.onabort=()=>reject(reason||new Error('资料读取或保存失败，请保留当前窗口并检查设备存储空间'));
+    tx.onerror=()=>{reason=reason||new Error('设备存储不可用，已有资料不会被重新初始化');};
+  });
+}
+function requireState(state:LocalState|undefined):LocalState{if(!state||!Array.isArray(state.records)||!Array.isArray(state.revisions))throw new Error('资料格式异常，请从完整备份恢复，已有资料未被覆盖');return state;}
+function saveLocal(state:LocalState,row:Row):Row{
+  const old=state.records.find(r=>r.id===row.id);
+  if((old&&old.version!==row.version)||(!old&&row.version>0))throw new Error('此记录已在其他窗口更新，请保留正文，重新打开页面后再编辑');
+  const saved={...row,version:(old?.version||0)+1,updated:new Date().toISOString()};
+  state.records=old?state.records.map(r=>r.id===saved.id?saved:r):[...state.records,saved];
+  state.revisions.push(structuredClone(saved));return saved;
 }
 async function api(path:string,data?:unknown,method?:string){
   const response=await fetch('/api/'+path,{method:method||(data?'POST':'GET'),credentials:'same-origin',headers:{'Content-Type':'application/json','X-Qisushuo':'workspace'},body:data?JSON.stringify(data):undefined});
@@ -30,37 +47,26 @@ async function api(path:string,data?:unknown,method?:string){
 export const repo={
   async boot():Promise<{records:Row[];ai_available:boolean}>{
     if(!offline)return api('bootstrap');
-    localDb=await new Promise((resolve,reject)=>{const request=indexedDB.open('qisushuo-personal-research',1);request.onupgradeneeded=()=>request.result.createObjectStore('workspace');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(new Error('当前浏览器无法保存资料，请允许本地存储后重新打开'));});
-    localState=await new Promise(resolve=>{const req=localDb.transaction('workspace').objectStore('workspace').get('state');req.onsuccess=()=>resolve(req.result);req.onerror=()=>resolve(undefined as never);});
-    if(!localState){localState={records:structuredClone(initialRows),revisions:structuredClone(initialRows)};await persist();}
-    return {records:structuredClone(localState.records),ai_available:false};
+    if(!localDb)localDb=await new Promise((resolve,reject)=>{const request=indexedDB.open('qisushuo-personal-research',1);request.onupgradeneeded=()=>request.result.createObjectStore('workspace');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(new Error('当前浏览器无法保存资料，请允许本地存储后重新打开'));});
+    const records=await transact(true,state=>{const current=state===undefined?{records:structuredClone(initialRows),revisions:structuredClone(initialRows)}:requireState(state);return {state:current,value:current.records};});
+    return {records,ai_available:false};
   },
   async save(row:Row):Promise<Row>{
     if(!offline)return api('records',row);
-    const old=localState.records.find(r=>r.id===row.id);
-    if(old&&old.version!==row.version)throw new Error('此记录已更新，请刷新后再试');
-    const saved={...row,version:(old?.version||0)+1,updated:new Date().toISOString()};
-    const previous=structuredClone(localState);
-    localState.records=old?localState.records.map(r=>r.id===saved.id?saved:r):[...localState.records,saved];
-    localState.revisions.push(structuredClone(saved));
-    try{await persist();}catch(e){localState=previous;throw e;}
-    return structuredClone(saved);
+    return transact(true,state=>{const current=requireState(state);return {state:current,value:saveLocal(current,row)};});
   },
   async batch(rows:Row[]):Promise<Row[]>{
     if(!offline)return (await api('imports',{records:rows})).records;
-    const previous=structuredClone(localState);
-    const result:Row[]=[];
-    try{for(const row of rows){const old=localState.records.find(r=>r.id===row.id);if(old&&row.version!==old.version)throw new Error('资料已更新，请重新预览导入');const saved={...row,version:(old?.version||0)+1,updated:new Date().toISOString()};localState.records=old?localState.records.map(r=>r.id===row.id?saved:r):[...localState.records,saved];localState.revisions.push(structuredClone(saved));result.push(saved);}await persist();return result;}catch(e){localState=previous;throw e;}
+    return transact(true,state=>{const current=requireState(state);return {state:current,value:rows.map(row=>saveLocal(current,row))};});
   },
-  async versions(id:string):Promise<Row[]>{return offline?structuredClone(localState.revisions.filter(r=>r.id===id).sort((a,b)=>b.version-a.version)):api('records/'+encodeURIComponent(id)+'/versions');},
-  async backup():Promise<Backup>{return offline?{format:'qisushuo-backup',schema:1,exported_at:new Date().toISOString(),...structuredClone(localState)}:api('export');},
+  async versions(id:string):Promise<Row[]>{return offline?transact(false,state=>{const current=requireState(state);return {state:current,value:current.revisions.filter(r=>r.id===id).sort((a,b)=>b.version-a.version)};}):api('records/'+encodeURIComponent(id)+'/versions');},
+  async backup():Promise<Backup>{return offline?transact(false,state=>{const current=requireState(state);return {state:current,value:{format:'qisushuo-backup' as const,schema:1 as const,exported_at:new Date().toISOString(),...current}};}):api('export');},
   async restore(data:Backup):Promise<Row[]>{
     if(data.format!=='qisushuo-backup'||data.schema!==1||!Array.isArray(data.records)||data.records.length>2000)throw new Error('请选择有效的耆宿说备份文件');
     const valid=(r:Row)=>r&&typeof r.id==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(r.id)&&typeof r.title==='string'&&r.title.trim().length>0&&r.title.length<=200&&['knowledge','expert','source','evidence','draft','project','task','note'].includes(r.kind)&&typeof r.body==='string'&&['tags','sourceIds','relatedIds'].every(k=>Array.isArray(r[k])&&(r[k] as unknown[]).every(v=>typeof v==='string'))&&['category','era','place','status','created','updated'].every(k=>typeof r[k]==='string')&&Number.isInteger(r.version)&&r.version>0&&(!r.citations||Array.isArray(r.citations)&&r.citations.every(c=>typeof c.id==='string'&&typeof c.title==='string'&&typeof c.quote==='string'&&Number.isInteger(c.version)&&c.version>0));
     if(data.records.some(r=>!valid(r))||(data.revisions&&!Array.isArray(data.revisions))||data.revisions?.some(r=>!valid(r))||new Set(data.records.map(r=>r.id)).size!==data.records.length)throw new Error('备份中的资料格式不完整，原有资料保留');
     if(!offline)return (await api('restore',data)).records;
-    const previous=localState;localState={records:structuredClone(data.records),revisions:structuredClone(data.revisions||data.records)};
-    try{await persist();return structuredClone(localState.records);}catch(e){localState=previous;throw e;}
+    return transact(true,()=>{const state={records:structuredClone(data.records),revisions:structuredClone(data.revisions||data.records)};return {state,value:state.records};});
   },
   async ask(question:string,rows:Row[],ids:string[]=[],purpose='answer',scope='all'):Promise<Answer>{
     if(!offline)return api('assistant',{question,source_ids:ids,purpose,scope});
