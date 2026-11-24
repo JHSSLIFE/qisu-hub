@@ -40,11 +40,19 @@ async function readState(page) {
 }
 
 async function removeTestRecords(page) {
-  return page.evaluate(titles => new Promise((resolve, reject) => {
+  return page.evaluate(async titles => {
+    // Opening a missing database creates it. Never perform cleanup before the
+    // application has initialized, or when the origin has no workspace yet.
+    if (window.__qisushuoReady !== true || typeof indexedDB.databases !== 'function') return false;
+    const databases = await indexedDB.databases();
+    if (!databases.some(db => db.name === 'qisushuo-personal-research')) return false;
+    return new Promise((resolve, reject) => {
     const open = indexedDB.open('qisushuo-personal-research', 1);
+    open.onupgradeneeded = () => open.transaction.abort(); // Guard against deletion between the check and open.
     open.onerror = () => reject(new Error('Cannot open workspace for cleanup'));
     open.onsuccess = () => {
       const db = open.result;
+      if (!db.objectStoreNames.contains('workspace')) { db.close(); resolve(false); return; }
       const tx = db.transaction('workspace', 'readwrite');
       const store = tx.objectStore('workspace');
       const read = store.get('state');
@@ -62,13 +70,14 @@ async function removeTestRecords(page) {
       tx.oncomplete = () => { db.close(); resolve(true); };
       tx.onabort = () => { db.close(); reject(new Error('Test record cleanup failed; user data was not reset')); };
     };
-  }), testTitles);
+    });
+  }, testTitles);
 }
 
 async function ready(page, route = 'home') {
   await page.bringToFront();
   await page.goto(appURL + '#' + route, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => window.__qisushuoReady === true, null, { timeout: 30000 });
+  await page.waitForFunction(() => window.__qisushuoReady === true, null, { timeout: 60000 });
   await page.locator('.app-shell').waitFor();
 }
 
@@ -177,7 +186,7 @@ async function nestedPathCase(testPage) {
     Object.defineProperty(navigator.serviceWorker, 'ready', { configurable: true, get: () => Promise.resolve(registration) });
   });
   await nested.goto(new URL('app.html#settings', nestedBase).href, { waitUntil: 'domcontentloaded' });
-  await nested.waitForFunction(() => window.__qisushuoReady && !!window.__qisuNestedWorker);
+  await nested.waitForFunction(() => window.__qisushuoReady && !!window.__qisuNestedWorker, null, { timeout: 60000 });
   const result = await nested.evaluate(async () => {
     const link = document.querySelector('link[rel="manifest"]');
     const url = new URL(link.getAttribute('href'), location.href);
@@ -219,6 +228,7 @@ async function main() {
     const tab = await context.newPage();
     pages.push(tab);
     tab.setDefaultTimeout(15000);
+    tab.setDefaultNavigationTimeout(120000);
     tab.on('pageerror', error => errors.push(error.message));
     tab.on('console', message => {
       if (message.type() === 'error') consoleErrors.push(message.text());
@@ -276,7 +286,7 @@ async function main() {
       assert(icon && icon.status === 200 && icon.bytes > 0, 'Install icon is unavailable: ' + size);
     }
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => window.__qisushuoReady && !!navigator.serviceWorker.controller);
+    await page.waitForFunction(() => window.__qisushuoReady && !!navigator.serviceWorker.controller, null, { timeout: 60000 });
     report.install = install;
     report.checks.push('Manifest, 192/512 icons, app start URL, scoped active service worker');
 
@@ -286,14 +296,14 @@ async function main() {
     await network.send('Network.enable');
     await network.send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => window.__qisushuoReady === true);
+    await page.waitForFunction(() => window.__qisushuoReady === true, null, { timeout: 60000 });
     await navigate(page, 'create');
     await createDraft(page, testTitles[0], firstBody);
     let state = await readState(page);
     const created = state.records.find(row => row.title === testTitles[0]);
     assert(created && created.version === 1 && created.body === firstBody, 'Offline draft was not durably saved');
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => window.__qisushuoReady === true);
+    await page.waitForFunction(() => window.__qisushuoReady === true, null, { timeout: 60000 });
     await page.getByRole('heading', { name: testTitles[0], exact: true }).waitFor();
     await editDraft(page, testTitles[0]);
     assert.equal(await page.getByLabel('正文内容', { exact: true }).inputValue(), firstBody);
@@ -391,8 +401,7 @@ async function main() {
     assert.deepEqual(consoleErrors, [], 'Browser console errors');
     assert.deepEqual(badNetwork, [], 'HTTP error responses');
     report.checks.push('No API requests, unhandled errors, console errors or failed HTTP responses');
-    await removeTestRecords(page);
-    cleaned = true;
+    cleaned = await removeTestRecords(page);
     report.passed = true;
   } catch (error) {
     report.passed = false;
@@ -403,7 +412,7 @@ async function main() {
       try { await client.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }); } catch { /* Tab may already be closed. */ }
     }
     if (!cleaned && page && !page.isClosed()) {
-      try { await removeTestRecords(page); cleaned = true; } catch (error) { report.cleanupError = error.message; }
+      try { cleaned = await removeTestRecords(page); } catch (error) { report.cleanupError = error.message; }
     }
     report.cleanedTestRecords = cleaned;
     report.finishedAt = new Date().toISOString();

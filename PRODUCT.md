@@ -1,4 +1,4 @@
-# 耆宿说 QISUSHUO
+# 耆宿说数字工作台 QISU HUB
 
 ## 产品定位
 

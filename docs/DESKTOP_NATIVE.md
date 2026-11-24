@@ -11,7 +11,7 @@
 | 文件标记 | 适用系统与架构 |
 | --- | --- |
 | `Windows-x64-standalone` | Windows 10 / 11，Intel 或 AMD 64 位电脑 |
-| `macOS-arm64-standalone` | Apple Silicon Mac（M 系列），macOS 15 或更新版本 |
+| `macOS-arm64-standalone` | Apple Silicon Mac（M 系列），当前发行包在 macOS 26 构建验证；更早系统未实机验收 |
 | `macOS-x64-standalone` | Intel Mac，macOS 15 或更新版本 |
 | `Linux-x64-standalone` | 主流 glibc Linux x64；基于 Ubuntu 22.04 构建 |
 
@@ -26,3 +26,5 @@ GitHub Actions 中的 **QISU HUB standalone desktop** 工作流分别在 Windows
 每个平台会验证嵌入包中 `app.html`、manifest、Service Worker、图标与原构建字节一致，并运行可执行文件的 `--help` 与 `--check`。这些检查验证封装完整性和运行时可启动，不代替真机浏览器、系统安装流程或签名验证。每个 ZIP 带独立 `.sha256` 校验和；ZIP 内含构建清单、前端第三方声明、Python 及 PyInstaller 许可文本。
 
 构建工具固定为 [PyInstaller 6.22.3](https://pypi.org/project/pyinstaller/6.22.3/)，Python 3.12。[PyInstaller 官方说明](https://pyinstaller.org/en/stable/)指出其打包应用无需用户另装 Python，且须在目标系统分别构建；本项目因此使用四个原生 Runner。[GitHub 官方 Runner 列表](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)说明 macOS Intel 与 Apple Silicon 使用不同标签。
+
+本轮四个平台的可执行包均已生成并发布至 v1.1.0。Apple Silicon 首次排队未获运行资源，后由 **QISU HUB Apple Silicon recovery** 工作流在 macOS 26 成功构建。

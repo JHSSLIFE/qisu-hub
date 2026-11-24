@@ -132,4 +132,4 @@ python3 scripts/build_release.py --output /path/to/qisu-hub-release
 
 macOS 使用 `shasum -a 256 <文件名>`，Linux 使用 `sha256sum <文件名>`，Windows PowerShell 使用 `Get-FileHash <文件名> -Algorithm SHA256`，与 `SHA256SUMS.txt` 对比即可。
 
-GitHub Actions 在 push / pull request 时检查类型、构建、后端和发行包；推送 `v*` 标签时生成 GitHub Release。GitHub Pages 工作流需仓库具备 Pages 权限，并在仓库设置中将来源设为 GitHub Actions 后手动执行；私有仓库是否支持 Pages 取决于账号方案。Pages 部署只发布本地版，不发布 API 或研究资料。
+GitHub Actions 在 push / pull request 时检查类型、构建、后端和发行包；推送 `v*` 标签时生成 GitHub Release。仓库已公开并启用 GitHub Pages。main 分支的产品源文件变更会自动部署，也可手动执行 Pages 工作流。Pages 部署只发布本地版，不发布 API 或研究资料。
