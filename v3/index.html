@@ -234,7 +234,7 @@ async function loadAdmin(){
  }catch(e){toast((e&&e.message)||'无法读取权限信息');}
 }
 function showCodeOnce(p){
- const link=location.origin+'/v3/?code='+p.code;
+ const link=location.origin+'/?code='+p.code;
  modal('专家邀请码（只显示一次）',`<p class="quiet">${esc(p.name||'')} · 有效至 ${esc((p.expires||'').slice(0,10))}</p><div class="auth-code" style="font-size:24px;letter-spacing:3px;padding:10px 0">${esc(p.code)}</div><input id="invite-url" readonly value="${esc(link)}" style="width:100%" onclick="this.select()"><button class="btn" data-copy-invite>复制链接</button><p class="quiet">关闭后无法再查看，需「重置码」生成新的。</p>`);
 }
 async function doExpertAction(d){
@@ -244,7 +244,7 @@ async function doExpertAction(d){
  if('grant'in d){void grantDialog(x);return;}
  if('inviteLink'in d){
   if(!qisuLastCode||qisuLastCode.user_id!==uid){toast('邀请码只在生成时显示一次，请先「重置码」再复制');return;}
-  const link=location.origin+'/v3/?code='+qisuLastCode.code;
+  const link=location.origin+'/?code='+qisuLastCode.code;
   modal('专家邀请链接',`<input id="invite-url" readonly value="${esc(link)}" style="width:100%" onclick="this.select()"><p class="quiet">邀请码 ${esc(qisuLastCode.code)} · 有效至 ${esc((qisuLastCode.expires||'').slice(0,10))}</p><button class="btn" data-copy-invite>复制链接</button>`);
   return;
  }

@@ -1193,15 +1193,12 @@ def join_space(t: str = '', to: str = '/'):
 
 @app.get('/{path:path}')
 def frontend(path: str):
-    # Never expose source code, databases, dependency folders, or environment files.
-    allowed={'':'index.html','index.html':'index.html','preview.html':'index.html','manifest-online.webmanifest':'manifest-online.webmanifest',
-             'app.html':'app.html','manifest.webmanifest':'manifest.webmanifest','sw.js':'sw.js',
-             'icons/icon-192.png':'icons/icon-192.png','icons/icon-512.png':'icons/icon-512.png',
-             'favicon.ico':'icons/icon-192.png'}
+    # 根路径展示 V3.3（The Living Archive）；api.js 与其同目录。
+    allowed={'':'index.html','index.html':'index.html','preview.html':'index.html','api.js':'api.js'}
     if path not in allowed: raise HTTPException(404,'页面不存在')
-    asset=ROOT/'dist'/allowed[path]
+    asset=ROOT/'v3'/allowed[path]
     if not asset.is_file(): raise HTTPException(503,'页面正在准备中')
-    mime={'.html':'text/html','.webmanifest':'application/manifest+json','.js':'application/javascript','.png':'image/png'}
+    mime={'.html':'text/html','.js':'application/javascript'}
     return FileResponse(asset,media_type=mime.get(asset.suffix),headers={'Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'})
 
 if __name__=='__main__':
