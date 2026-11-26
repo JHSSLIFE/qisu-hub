@@ -1,5 +1,6 @@
 """QISUSHUO research workspace. Credentials remain server-side."""
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -7,13 +8,13 @@ import secrets
 import time
 import uuid
 from collections import defaultdict, deque
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import String, Integer, Text, create_engine, select, event
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
@@ -39,6 +40,18 @@ class Space(Base):
     token_hash: Mapped[str] = mapped_column(String, unique=True, index=True)
     created: Mapped[str] = mapped_column(String)
 
+class Client(Base):
+    """S1 诊断用：记录访问过同一空间的设备，便于核对两端是否同空间。"""
+    __tablename__ = 'clients'
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(String, index=True)
+    ip: Mapped[str] = mapped_column(String, default='')
+    ua_hash: Mapped[str] = mapped_column(String, default='')
+    ua: Mapped[str] = mapped_column(String, default='')
+    first_seen: Mapped[str] = mapped_column(String)
+    last_seen: Mapped[str] = mapped_column(String)
+    hits: Mapped[int] = mapped_column(Integer, default=1)
+
 class Record(Base):
     __tablename__ = 'records'
     workspace_id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -62,6 +75,141 @@ class Audit(Base):
     action: Mapped[str] = mapped_column(String)
     record_id: Mapped[str] = mapped_column(String)
     created: Mapped[str] = mapped_column(String)
+
+
+class User(Base):
+    __tablename__ = 'users'
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    email: Mapped[str] = mapped_column(String, unique=True, index=True)
+    name: Mapped[str] = mapped_column(String, default='')
+    created: Mapped[str] = mapped_column(String)
+
+class AuthCode(Base):
+    __tablename__ = 'auth_codes'
+    email: Mapped[str] = mapped_column(String, primary_key=True)
+    code_hash: Mapped[str] = mapped_column(String)
+    expires: Mapped[str] = mapped_column(String)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+
+class LoginSession(Base):
+    __tablename__ = 'sessions'
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String, index=True)
+    space_id: Mapped[str] = mapped_column(String, index=True)
+    token_hash: Mapped[str] = mapped_column(String, unique=True, index=True)
+    created: Mapped[str] = mapped_column(String)
+    last_seen: Mapped[str] = mapped_column(String)
+    revoked: Mapped[bool] = mapped_column(default=False)
+    ua: Mapped[str] = mapped_column(String, default='')
+    ip: Mapped[str] = mapped_column(String, default='')
+
+class Membership(Base):
+    __tablename__ = 'memberships'
+    user_id: Mapped[str] = mapped_column(String, primary_key=True)
+    space_id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    role: Mapped[str] = mapped_column(String, default='editor')
+    created: Mapped[str] = mapped_column(String)
+
+class ExpertGrant(Base):
+    __tablename__ = 'expert_grants'
+    workspace_id: Mapped[str] = mapped_column(String, primary_key=True)
+    record_id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    created: Mapped[str] = mapped_column(String)
+
+class Invite(Base):
+    __tablename__ = 'invites'
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    space_id: Mapped[str] = mapped_column(String, index=True)
+    role: Mapped[str] = mapped_column(String, default='editor')
+    token_hash: Mapped[str] = mapped_column(String, unique=True, index=True)
+    created: Mapped[str] = mapped_column(String)
+    expires: Mapped[str] = mapped_column(String)
+    created_by: Mapped[str] = mapped_column(String, default='')
+    used_by: Mapped[str] = mapped_column(String, default='')
+    used_at: Mapped[str] = mapped_column(String, default='')
+
+ROLES = {'owner', 'admin', 'editor', 'reviewer', 'viewer', 'expert'}
+EMAIL_RE = re.compile(r'^[^@\s]{1,64}@[^@\s]{1,190}\.[A-Za-z]{2,10}$')
+CODE_TTL = 600
+CODE_ATTEMPTS = 5
+
+def rate(key: str, limit: int, window: float = 600):
+    tick = time.monotonic()
+    queue = limits[key]
+    while queue and tick - queue[0] > window:
+        queue.popleft()
+    if len(queue) >= limit:
+        raise HTTPException(429, '请求过于频繁，请稍后再试')
+    queue.append(tick)
+
+
+def is_admin(role: str) -> bool:
+    return role in ('owner', 'admin')
+
+def can_write(role: str) -> bool:
+    return role in ('owner', 'admin', 'editor')
+
+def visible_records(db: Session, actor):
+    """按身份裁剪：管理员全量；专家仅被授权；普通成员看不到专家私有资料。"""
+    space = actor['space_id']
+    rows = [json.loads(r.payload) for r in db.scalars(select(Record).where(Record.workspace_id == space))]
+    role = actor['role']
+    if is_admin(role):
+        return rows
+    if role == 'expert':
+        if not actor['user_id']:
+            return []
+        granted = {g.record_id for g in db.scalars(select(ExpertGrant).where(ExpertGrant.workspace_id == space, ExpertGrant.user_id == actor['user_id']))}
+        return [row for row in rows if row['id'] in granted]
+    return [row for row in rows if not row.get('expertUserId')]
+
+def can_see(row: dict, actor, db: Session) -> bool:
+    if is_admin(actor['role']):
+        return True
+    if actor['role'] == 'expert':
+        if not actor['user_id']:
+            return False
+        grant = db.get(ExpertGrant, (actor['space_id'], row['id'], actor['user_id']))
+        return bool(grant)
+    return not row.get('expertUserId')
+
+def require_admin(actor):
+    if not is_admin(actor['role']):
+        raise HTTPException(403, '需要管理员权限')
+
+def role_for(db: Session, user_id: str, space_id: str) -> str:
+    if not user_id:
+        return 'owner'
+    member = db.get(Membership, (user_id, space_id))
+    return member.role if member else ''
+
+def current_session(request: Request):
+    token = request.cookies.get('qisushuo_session', '')
+    if not token:
+        return None
+    digest = hashlib.sha256(token.encode()).hexdigest()
+    with Session(engine) as db:
+        return db.scalar(select(LoginSession).where(LoginSession.token_hash == digest, LoginSession.revoked == False))
+
+
+class Credential(Base):
+    __tablename__ = 'credentials'
+    username: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String, index=True)
+    password_hash: Mapped[str] = mapped_column(String)
+    created: Mapped[str] = mapped_column(String)
+    disabled: Mapped[bool] = mapped_column(default=False)
+
+class ExpertCode(Base):
+    __tablename__ = 'expert_codes'
+    code_hash: Mapped[str] = mapped_column(String, primary_key=True)
+    space_id: Mapped[str] = mapped_column(String, index=True)
+    role: Mapped[str] = mapped_column(String, default='reviewer')
+    label: Mapped[str] = mapped_column(String, default='')
+    created: Mapped[str] = mapped_column(String)
+    expires: Mapped[str] = mapped_column(String)
+    revoked: Mapped[bool] = mapped_column(default=False)
 
 Base.metadata.create_all(engine)
 with engine.begin() as con:
@@ -143,15 +291,24 @@ def put(db: Session, space: str, data: dict, check_version=True):
     index_record(db,space,data)
     return data
 
-def get_space(request: Request):
+def resolve_actor(request: Request):
     token = request.cookies.get('qisushuo_session', '')
     if not token:
-        raise HTTPException(401, '请刷新页面，重新打开研究空间')
+        raise HTTPException(401, '请登录后继续')
+    digest = hashlib.sha256(token.encode()).hexdigest()
     with Session(engine) as db:
-        space = db.scalar(select(Space).where(Space.token_hash == hashlib.sha256(token.encode()).hexdigest()))
-        if not space:
-            raise HTTPException(401, '研究空间会话已失效，请刷新页面')
-        return space.id
+        session = db.scalar(select(LoginSession).where(LoginSession.token_hash == digest, LoginSession.revoked == False))
+        if session:
+            session.last_seen = now()
+            db.commit()
+            return {'user_id': session.user_id, 'space_id': session.space_id, 'role': role_for(db, session.user_id, session.space_id), 'legacy': False}
+        space = db.scalar(select(Space).where(Space.token_hash == digest))
+        if space:
+            return {'user_id': '', 'space_id': space.id, 'role': 'owner', 'legacy': True}
+    raise HTTPException(401, '会话已失效，请重新登录')
+
+def get_space(request: Request):
+    return resolve_actor(request)['space_id']
 
 @app.middleware('http')
 async def guard(request: Request, call_next):
@@ -183,8 +340,19 @@ def health():
 @app.get('/api/bootstrap')
 def bootstrap(request: Request, response: Response):
     token = request.cookies.get('qisushuo_session','')
+    digest = hashlib.sha256(token.encode()).hexdigest() if token else ''
     with Session(engine) as db:
-        space = db.scalar(select(Space).where(Space.token_hash == hashlib.sha256(token.encode()).hexdigest())) if token else None
+        login = db.scalar(select(LoginSession).where(LoginSession.token_hash == digest, LoginSession.revoked == False)) if digest else None
+        if not login and os.environ.get('QISUSHUO_REQUIRE_LOGIN') == '1':
+            raise HTTPException(401, '请先登录，再打开研究空间')
+        auth_user = None
+        if login:
+            space = db.get(Space, login.space_id)
+            user = db.get(User, login.user_id)
+            if space and user:
+                auth_user = {'id': user.id, 'email': user.email, 'name': user.name, 'role': role_for(db, user.id, space.id)}
+        else:
+            space = db.scalar(select(Space).where(Space.token_hash == digest)) if digest else None
         if not space:
             token = secrets.token_urlsafe(48)
             space = Space(id=uuid.uuid4().hex, token_hash=hashlib.sha256(token.encode()).hexdigest(),created=now())
@@ -195,19 +363,54 @@ def bootstrap(request: Request, response: Response):
             db.commit()
             secure = request.url.scheme == 'https' or request.headers.get('x-forwarded-proto') == 'https'
             response.set_cookie('qisushuo_session',token,max_age=365*86400,httponly=True,samesite='lax',secure=secure)
-        records = [json.loads(r.payload) for r in db.scalars(select(Record).where(Record.workspace_id==space.id))]
-    return {'records':records,'mode':'online','ai_available':bool(os.environ.get('OPENAI_API_KEY')),'workspace':space.id}
+        space_id = space.id
+        actor = {'user_id': login.user_id if login else '', 'space_id': space_id,
+                 'role': role_for(db, login.user_id, space_id) if login else 'owner'}
+        records = visible_records(db, actor)
+        touch_client(db, space_id, request)
+        db.commit()
+    return {'records':records,'mode':'online','ai_available':bool(os.environ.get('OPENAI_API_KEY')),'workspace':space_id,'user':auth_user}
+
+def touch_client(db: Session, space_id: str, request: Request):
+    ua = (request.headers.get('user-agent') or '')[:300]
+    ip = (request.headers.get('x-forwarded-for') or (request.client.host if request.client else '') or '')[:80]
+    ua_hash = hashlib.sha256(ua.encode()).hexdigest()[:16]
+    key = hashlib.sha256((space_id + ip + ua_hash).encode()).hexdigest()[:24]
+    row = db.get(Client, key)
+    stamp = now()
+    if row:
+        row.last_seen = stamp
+        row.hits = (row.hits or 0) + 1
+    else:
+        db.add(Client(id=key, workspace_id=space_id, ip=ip, ua_hash=ua_hash, ua=ua, first_seen=stamp, last_seen=stamp, hits=1))
+
+@app.get('/api/space/clients')
+def space_clients(request: Request):
+    space = get_space(request)
+    with Session(engine) as db:
+        rows = db.scalars(select(Client).where(Client.workspace_id==space).order_by(Client.last_seen.desc()))
+        return {'workspace':space,'clients':[{'ip':c.ip,'ua':c.ua,'hits':c.hits,'first_seen':c.first_seen,'last_seen':c.last_seen} for c in rows]}
+
 
 @app.get('/api/records/{record_id}/versions')
 def versions(record_id: str, request: Request):
-    space = get_space(request)
+    actor = resolve_actor(request)
+    space = actor['space_id']
     with Session(engine) as db:
+        row = db.get(Record, (space, record_id))
+        if not row:
+            raise HTTPException(404, '资料不存在')
+        if not can_see(json.loads(row.payload), actor, db):
+            raise HTTPException(403, '无权查看这条资料')
         rows = db.scalars(select(Revision).where(Revision.workspace_id==space,Revision.record_id==record_id).order_by(Revision.version.desc()))
         return [json.loads(r.payload) for r in rows]
 
 @app.post('/api/records')
 def save_record(data: dict, request: Request):
-    space = get_space(request)
+    actor = resolve_actor(request)
+    if not can_write(actor['role']):
+        raise HTTPException(403, '当前身份只能查看资料')
+    space = actor['space_id']
     with Session(engine) as db:
         saved = put(db,space,data)
         db.commit()
@@ -218,7 +421,10 @@ class ImportRequest(BaseModel):
 
 @app.post('/api/imports')
 def import_records(data: ImportRequest,request: Request):
-    space = get_space(request)
+    actor = resolve_actor(request)
+    if not can_write(actor['role']):
+        raise HTTPException(403, '当前身份不能导入资料')
+    space = actor['space_id']
     with Session(engine) as db:
         saved = [put(db,space,r) for r in data.records]
         db.commit()
@@ -226,10 +432,12 @@ def import_records(data: ImportRequest,request: Request):
 
 @app.get('/api/search')
 def search(q: str,request: Request):
-    space = get_space(request)
+    actor = resolve_actor(request)
+    space = actor['space_id']
     if len(q)>500:
         raise HTTPException(422,'检索词过长')
     with Session(engine) as db:
+        allowed = {row['id'] for row in visible_records(db, actor)}
         # Trigrams support CJK >=3 characters; parameterized LIKE covers short terms.
         words = [w for w in re.split(r'[\s，。？！?、]+',q.strip()) if w]
         found = set()
@@ -241,11 +449,13 @@ def search(q: str,request: Request):
             escaped = word.replace('\\','\\\\').replace('%','\\%').replace('_','\\_')
             hits = db.connection().exec_driver_sql("SELECT record_id FROM knowledge_search WHERE workspace_id=? AND (title LIKE ? ESCAPE '\\' OR body LIKE ? ESCAPE '\\' OR tags LIKE ? ESCAPE '\\') LIMIT 50",(space,'%'+escaped+'%','%'+escaped+'%','%'+escaped+'%'))
             found.update(r[0] for r in hits)
-        return {'ids':list(found)}
+        return {'ids':[rid for rid in found if rid in allowed][:50]}
 
 @app.get('/api/export')
 def export_workspace(request: Request):
-    space = get_space(request)
+    actor = resolve_actor(request)
+    require_admin(actor)
+    space = actor['space_id']
     with Session(engine) as db:
         records=[json.loads(r.payload) for r in db.scalars(select(Record).where(Record.workspace_id==space))]
         revisions=[json.loads(r.payload) for r in db.scalars(select(Revision).where(Revision.workspace_id==space))]
@@ -253,7 +463,9 @@ def export_workspace(request: Request):
 
 @app.post('/api/restore')
 def restore_workspace(data: dict,request: Request):
-    space=get_space(request)
+    actor=resolve_actor(request)
+    require_admin(actor)
+    space=actor['space_id']
     if data.get('format')!='qisushuo-backup' or data.get('schema')!=1 or not isinstance(data.get('records'),list) or len(data['records'])>2000:
         raise HTTPException(422,'这不是有效的耆宿说备份文件')
     records=[normalize(r) for r in data['records']]
@@ -306,7 +518,8 @@ def retrieve(question: str, records: list[dict], selected: list[str]):
 
 @app.post('/api/assistant')
 async def assistant(data: AskRequest,request: Request):
-    space=get_space(request)
+    actor=resolve_actor(request)
+    space=actor['space_id']
     tick=time.monotonic()
     queue=limits[space]
     while queue and tick-queue[0]>60: queue.popleft()
@@ -314,7 +527,7 @@ async def assistant(data: AskRequest,request: Request):
         raise HTTPException(429,'请稍等片刻，每分钟可进行 8 次资料问答')
     queue.append(tick)
     with Session(engine) as db:
-        records=[json.loads(r.payload) for r in db.scalars(select(Record).where(Record.workspace_id==space))]
+        records=visible_records(db, actor)
     scoped=[r for r in records if data.scope=='all' or r['kind']==data.scope]
     selected=retrieve(data.question,scoped,data.source_ids)
     citations=[{'id':r['id'],'version':r['version'],'title':r['title'],'quote':re.sub(r'[#*>\[\]]','',r.get('body','')).strip()[:280]} for r in selected]
@@ -352,10 +565,401 @@ async def assistant(data: AskRequest,request: Request):
     except Exception:
         return {'text':fallback,'citations':citations,'mode':'extract','notice':'智能生成暂不可用，已为你保留可核对的原文线索。'}
 
+class CodeRequest(BaseModel):
+    email: str
+
+class VerifyRequest(BaseModel):
+    email: str
+    code: str
+    invite: str = ''
+
+class InviteRequest(BaseModel):
+    role: str = 'editor'
+    hours: int = 72
+
+class InviteAccept(BaseModel):
+    token: str
+
+def mask_email(email: str) -> str:
+    name, _, domain = email.partition('@')
+    return (name[:2] + '***@' + domain) if len(name) > 2 else ('*' * len(name) + '@' + domain)
+
+@app.post('/api/auth/request-code')
+def request_code(data: CodeRequest, request: Request):
+    email = data.email.strip().lower()
+    if not EMAIL_RE.fullmatch(email):
+        raise HTTPException(422, '请输入有效的邮箱地址')
+    ip = (request.client.host if request.client else '') or ''
+    rate('code:' + email, 5)
+    rate('codeip:' + ip, 20)
+    code = '%06d' % secrets.randbelow(1000000)
+    with Session(engine) as db:
+        row = db.get(AuthCode, email)
+        if not row:
+            row = AuthCode(email=email, attempts=0)
+            db.add(row)
+        row.code_hash = hashlib.sha256((email + code).encode()).hexdigest()[:32]
+        row.expires = (datetime.now(timezone.utc) + timedelta(seconds=CODE_TTL)).isoformat()
+        row.attempts = 0
+        db.commit()
+    dev = os.environ.get('QISUSHUO_DEV_CODE') == '1'
+    if dev:
+        print('[auth] login code for %s: %s' % (email, code), flush=True)
+    payload = {'sent': True, 'expires_in': CODE_TTL, 'email': mask_email(email)}
+    if dev:
+        payload['dev_code'] = code
+    return payload
+
+@app.post('/api/auth/verify')
+def verify_code(data: VerifyRequest, request: Request, response: Response):
+    email = data.email.strip().lower()
+    if not EMAIL_RE.fullmatch(email):
+        raise HTTPException(422, '请输入有效的邮箱地址')
+    code = data.code.strip()
+    if not re.fullmatch(r'[0-9]{6}', code):
+        raise HTTPException(422, '请输入 6 位数字验证码')
+    with Session(engine) as db:
+        row = db.get(AuthCode, email)
+        if not row or row.expires < now():
+            raise HTTPException(422, '验证码已过期，请重新获取')
+        if row.attempts >= CODE_ATTEMPTS:
+            raise HTTPException(429, '尝试次数过多，请重新获取验证码')
+        if hashlib.sha256((email + code).encode()).hexdigest()[:32] != row.code_hash:
+            row.attempts += 1
+            db.commit()
+            raise HTTPException(422, '验证码不正确')
+        user = db.scalar(select(User).where(User.email == email))
+        if not user:
+            user = User(id=uuid.uuid4().hex, email=email, name=email.split('@')[0][:40], created=now())
+            db.add(user)
+            db.flush()
+        role, space_id = '', ''
+        inviter = None
+        if data.invite:
+            digest = hashlib.sha256(data.invite.encode()).hexdigest()
+            inviter = db.scalar(select(Invite).where(Invite.token_hash == digest))
+            if inviter and not inviter.used_by and inviter.expires >= now():
+                space_id, role = inviter.space_id, inviter.role
+                inviter.used_by, inviter.used_at = user.id, now()
+        if not space_id:
+            member = db.scalar(select(Membership).where(Membership.user_id == user.id).order_by(Membership.created))
+            if member:
+                space_id, role = member.space_id, member.role
+        if not space_id:
+            legacy = request.cookies.get('qisushuo_session', '')
+            legacy_space = db.scalar(select(Space).where(Space.token_hash == hashlib.sha256(legacy.encode()).hexdigest())) if legacy else None
+            if legacy_space:
+                space_id, role = legacy_space.id, 'owner'
+            else:
+                token_seed = secrets.token_urlsafe(48)
+                legacy_space = Space(id=uuid.uuid4().hex, token_hash=hashlib.sha256(token_seed.encode()).hexdigest(), created=now())
+                db.add(legacy_space)
+                db.flush()
+                for item in SEED:
+                    put(db, legacy_space.id, item, False)
+                space_id, role = legacy_space.id, 'owner'
+        if not db.get(Membership, (user.id, space_id)):
+            db.add(Membership(user_id=user.id, space_id=space_id, role=role or 'editor', created=now()))
+        token = secrets.token_urlsafe(32)
+        ua = (request.headers.get('user-agent') or '')[:300]
+        ip = (request.client.host if request.client else '') or ''
+        db.add(LoginSession(id=uuid.uuid4().hex, user_id=user.id, space_id=space_id,
+                            token_hash=hashlib.sha256(token.encode()).hexdigest(), created=now(),
+                            last_seen=now(), revoked=False, ua=ua, ip=ip))
+        db.delete(row)
+        db.commit()
+        profile = {'id': user.id, 'email': user.email, 'name': user.name}
+    secure = request.url.scheme == 'https' or request.headers.get('x-forwarded-proto') == 'https'
+    response.set_cookie('qisushuo_session', token, max_age=30 * 86400, httponly=True, samesite='lax', secure=secure)
+    return {'user': profile, 'workspace': space_id, 'role': role}
+
+@app.post('/api/auth/logout')
+def logout(request: Request, response: Response):
+    token = request.cookies.get('qisushuo_session', '')
+    if token:
+        with Session(engine) as db:
+            login = db.scalar(select(LoginSession).where(LoginSession.token_hash == hashlib.sha256(token.encode()).hexdigest()))
+            if login:
+                login.revoked = True
+                db.commit()
+    response.delete_cookie('qisushuo_session')
+    return {'ok': True}
+
+@app.get('/api/me')
+def me(request: Request):
+    actor = resolve_actor(request)
+    with Session(engine) as db:
+        user = db.get(User, actor['user_id']) if actor['user_id'] else None
+        spaces = []
+        if user:
+            for member in db.scalars(select(Membership).where(Membership.user_id == user.id)):
+                spaces.append({'id': member.space_id, 'role': member.role})
+        members = []
+        if is_admin(actor['role']):
+            for member in db.scalars(select(Membership).where(Membership.space_id == actor['space_id'])):
+                owner = db.get(User, member.user_id)
+                members.append({'email': owner.email if owner else '(已删除)', 'role': member.role, 'joined': member.created})
+        elif actor['user_id']:
+            members = [{'email': (db.get(User, actor['user_id']).email if db.get(User, actor['user_id']) else ''), 'role': actor['role'], 'joined': ''}]
+        return {'user': {'id': user.id, 'email': user.email, 'name': user.name} if user else None,
+                'workspace': actor['space_id'], 'role': actor['role'],
+                'anonymous': actor['legacy'], 'spaces': spaces, 'members': members}
+
+@app.post('/api/spaces/invites')
+def create_invite(data: InviteRequest, request: Request):
+    actor = resolve_actor(request)
+    if actor['role'] not in ('owner', 'admin'):
+        raise HTTPException(403, '只有空间所有者或管理员可以生成邀请')
+    role = data.role if data.role in ('editor', 'reviewer', 'viewer') else 'editor'
+    hours = max(1, min(int(data.hours or 72), 720))
+    token = secrets.token_urlsafe(24)
+    with Session(engine) as db:
+        db.add(Invite(id=uuid.uuid4().hex, space_id=actor['space_id'], role=role,
+                      token_hash=hashlib.sha256(token.encode()).hexdigest(), created=now(),
+                      expires=(datetime.now(timezone.utc) + timedelta(hours=hours)).isoformat(),
+                      created_by=actor['user_id']))
+        db.commit()
+    return {'token': token, 'role': role, 'hours': hours,
+            'url': '/?invite=' + token}
+
+@app.post('/api/invites/accept')
+def accept_invite(data: InviteAccept, request: Request):
+    actor = resolve_actor(request)
+    if not actor['user_id']:
+        raise HTTPException(401, '请先登录再接受邀请')
+    digest = hashlib.sha256(data.token.strip().encode()).hexdigest()
+    with Session(engine) as db:
+        invite = db.scalar(select(Invite).where(Invite.token_hash == digest))
+        if not invite:
+            raise HTTPException(404, '邀请链接无效')
+        if invite.used_by:
+            raise HTTPException(409, '这条邀请已经被使用')
+        if invite.expires < now():
+            raise HTTPException(410, '邀请已过期，请让管理员重新生成')
+        if not db.get(Membership, (actor['user_id'], invite.space_id)):
+            db.add(Membership(user_id=actor['user_id'], space_id=invite.space_id, role=invite.role, created=now()))
+        invite.used_by, invite.used_at = actor['user_id'], now()
+        login = db.scalar(select(LoginSession).where(LoginSession.token_hash == hashlib.sha256(request.cookies.get('qisushuo_session','').encode()).hexdigest()))
+        if login:
+            login.space_id = invite.space_id
+        db.commit()
+        return {'workspace': invite.space_id, 'role': invite.role}
+
+
+class PasswordLogin(BaseModel):
+    username: str
+    password: str
+
+class ExpertLogin(BaseModel):
+    code: str
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 200_000)
+    return 'pbkdf2_sha256$200000$%s$%s' % (salt.hex(), digest.hex())
+
+def verify_password(password: str, stored: str) -> bool:
+    try:
+        algo, rounds, salt_hex, hash_hex = stored.split('$')
+        if algo != 'pbkdf2_sha256':
+            return False
+        digest = hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(salt_hex), int(rounds))
+        return hmac.compare_digest(digest.hex(), hash_hex)
+    except Exception:
+        return False
+
+def resolve_login_space(db: Session, user_id: str, request: Request):
+    """沿用既有逻辑：有归属用归属，否则认领浏览器里的旧空间，最后才新建。"""
+    member = db.scalar(select(Membership).where(Membership.user_id == user_id).order_by(Membership.created))
+    if member:
+        return member.space_id, member.role
+    legacy = request.cookies.get('qisushuo_session', '')
+    space = db.scalar(select(Space).where(Space.token_hash == hashlib.sha256(legacy.encode()).hexdigest())) if legacy else None
+    if not space:
+        seed_token = secrets.token_urlsafe(48)
+        space = Space(id=uuid.uuid4().hex, token_hash=hashlib.sha256(seed_token.encode()).hexdigest(), created=now())
+        db.add(space)
+        db.flush()
+        for item in SEED:
+            put(db, space.id, item, False)
+    role = 'owner'
+    if not db.get(Membership, (user_id, space.id)):
+        db.add(Membership(user_id=user_id, space_id=space.id, role=role, created=now()))
+    return space.id, role
+
+def issue_login(db: Session, user: User, space_id: str, role: str, request: Request, response: Response):
+    token = secrets.token_urlsafe(32)
+    ua = (request.headers.get('user-agent') or '')[:300]
+    ip = (request.client.host if request.client else '') or ''
+    db.add(LoginSession(id=uuid.uuid4().hex, user_id=user.id, space_id=space_id,
+                        token_hash=hashlib.sha256(token.encode()).hexdigest(), created=now(),
+                        last_seen=now(), revoked=False, ua=ua, ip=ip))
+    db.commit()
+    secure = request.url.scheme == 'https' or request.headers.get('x-forwarded-proto') == 'https'
+    response.set_cookie('qisushuo_session', token, max_age=30 * 86400, httponly=True, samesite='lax', secure=secure)
+    return {'user': {'id': user.id, 'email': user.email, 'name': user.name}, 'workspace': space_id, 'role': role}
+
+@app.post('/api/auth/password')
+def login_password(data: PasswordLogin, request: Request, response: Response):
+    username = data.username.strip().lower()
+    password = data.password
+    if not re.fullmatch(r'[a-z0-9._-]{3,64}', username):
+        raise HTTPException(422, '用户名需为 3–64 位字母、数字、点、下划线或短横线')
+    if not (6 <= len(password) <= 72):
+        raise HTTPException(422, '密码长度应为 6–72 位')
+    ip = (request.client.host if request.client else '') or ''
+    rate('pw:' + username, 10)
+    rate('pwip:' + ip, 30)
+    with Session(engine) as db:
+        cred = db.get(Credential, username)
+        if not cred or cred.disabled or not verify_password(password, cred.password_hash):
+            raise HTTPException(401, '用户名或密码不正确')
+        user = db.get(User, cred.user_id)
+        if not user:
+            raise HTTPException(401, '账号状态异常，请联系管理员')
+        space_id, role = resolve_login_space(db, user.id, request)
+        return issue_login(db, user, space_id, role, request, response)
+
+@app.post('/api/auth/expert-code')
+def login_expert_code(data: ExpertLogin, request: Request, response: Response):
+    raw = re.sub(r'[^0-9A-Za-z]', '', data.code or '')
+    if not (6 <= len(raw) <= 16):
+        raise HTTPException(422, '邀请码为 6–16 位字母或数字')
+    digest = hashlib.sha256(raw.upper().encode()).hexdigest()
+    ip = (request.client.host if request.client else '') or ''
+    rate('ex:' + digest[:16], 10)
+    rate('exip:' + ip, 30)
+    with Session(engine) as db:
+        record = db.get(ExpertCode, digest)
+        if not record or record.revoked or record.expires < now():
+            raise HTTPException(401, '邀请码无效或已过期')
+        email = 'expert-%s@guest.local' % digest[:12]
+        user = db.scalar(select(User).where(User.email == email))
+        if not user:
+            user = User(id=uuid.uuid4().hex, email=email, name=(record.label or '外部专家')[:40], created=now())
+            db.add(user)
+            db.flush()
+        member = db.get(Membership, (user.id, record.space_id))
+        if not member:
+            member = Membership(user_id=user.id, space_id=record.space_id, role=record.role, created=now())
+            db.add(member)
+            db.flush()
+        return issue_login(db, user, record.space_id, member.role, request, response)
+
+def seed_access():
+    """平台下发的凭据在本地测试时的临时入口；生产由平台系统写入同一张表。"""
+    username = (os.environ.get('QISUSHUO_ADMIN_USER') or '').strip().lower()
+    password = os.environ.get('QISUSHUO_ADMIN_PASSWORD') or ''
+    if username and password:
+        with Session(engine) as db:
+            user = db.scalar(select(User).where(User.email == username + '@internal.local'))
+            if not user:
+                user = User(id=uuid.uuid4().hex, email=username + '@internal.local', name=username, created=now())
+                db.add(user)
+                db.flush()
+            cred = db.get(Credential, username)
+            if not cred:
+                cred = Credential(username=username, user_id=user.id, password_hash=hash_password(password), created=now())
+                db.add(cred)
+            elif not verify_password(password, cred.password_hash):
+                cred.password_hash = hash_password(password)
+            db.commit()
+    code = re.sub(r'[^0-9A-Za-z]', '', os.environ.get('QISUSHUO_EXPERT_CODE') or '')
+    space_id = (os.environ.get('QISUSHUO_EXPERT_SPACE') or '').strip()
+    if code and space_id:
+        with Session(engine) as db:
+            if db.get(Space, space_id):
+                digest = hashlib.sha256(code.upper().encode()).hexdigest()
+                record = db.get(ExpertCode, digest)
+                role = os.environ.get('QISUSHUO_EXPERT_ROLE') or 'reviewer'
+                label = os.environ.get('QISUSHUO_EXPERT_LABEL') or '外部专家'
+                if not record:
+                    db.add(ExpertCode(code_hash=digest, space_id=space_id, role=role, label=label,
+                                      created=now(),
+                                      expires=(datetime.now(timezone.utc) + timedelta(days=30)).isoformat()))
+                else:
+                    record.role, record.label = role, label
+                db.commit()
+
+seed_access()
+
+
+class RolePatch(BaseModel):
+    role: str
+
+class GrantSet(BaseModel):
+    user_id: str
+    record_ids: list[str] = []
+
+@app.get('/api/admin/overview')
+def admin_overview(request: Request):
+    actor = resolve_actor(request)
+    require_admin(actor)
+    with Session(engine) as db:
+        members = []
+        for member in db.scalars(select(Membership).where(Membership.space_id == actor['space_id']).order_by(Membership.created)):
+            user = db.get(User, member.user_id)
+            grant_rows = db.scalars(select(ExpertGrant).where(ExpertGrant.workspace_id == actor['space_id'], ExpertGrant.user_id == member.user_id))
+            grant_ids = [g.record_id for g in grant_rows]
+            members.append({'user_id': member.user_id, 'name': user.name if user else '', 'email': user.email if user else '', 'role': member.role, 'grants': len(grant_ids), 'grant_ids': grant_ids})
+        records = [{'id': row['id'], 'title': row['title'], 'kind': row['kind']} for row in visible_records(db, actor) if not row.get('expertUserId')]
+        return {'workspace': actor['space_id'], 'role': actor['role'], 'members': members, 'records': records}
+
+@app.patch('/api/admin/members/{user_id}')
+def admin_set_role(user_id: str, data: RolePatch, request: Request):
+    actor = resolve_actor(request)
+    require_admin(actor)
+    if user_id == actor['user_id']:
+        raise HTTPException(422, '不能修改自己的角色')
+    role = data.role if data.role in ROLES else ''
+    if not role:
+        raise HTTPException(422, '角色不正确')
+    with Session(engine) as db:
+        member = db.get(Membership, (user_id, actor['space_id']))
+        if not member:
+            raise HTTPException(404, '成员不存在')
+        member.role = role
+        if role != 'expert':
+            db.query(ExpertGrant).filter(ExpertGrant.workspace_id == actor['space_id'], ExpertGrant.user_id == user_id).delete(synchronize_session=False)
+        db.commit()
+    return {'user_id': user_id, 'role': role}
+
+@app.post('/api/admin/grants')
+def admin_set_grants(data: GrantSet, request: Request):
+    actor = resolve_actor(request)
+    require_admin(actor)
+    with Session(engine) as db:
+        member = db.get(Membership, (data.user_id, actor['space_id']))
+        if not member or member.role != 'expert':
+            raise HTTPException(422, '目标不是本空间的专家账号')
+        wanted = set(data.record_ids[:2000])
+        existing = {g.record_id: g for g in db.scalars(select(ExpertGrant).where(ExpertGrant.workspace_id == actor['space_id'], ExpertGrant.user_id == data.user_id))}
+        for record_id in wanted - set(existing):
+            if db.get(Record, (actor['space_id'], record_id)):
+                db.add(ExpertGrant(workspace_id=actor['space_id'], record_id=record_id, user_id=data.user_id, created=now()))
+        for record_id in set(existing) - wanted:
+            db.delete(existing[record_id])
+        db.commit()
+        return {'user_id': data.user_id, 'grants': len(wanted)}
+
+@app.get('/api/join')
+def join_space(t: str = '', to: str = '/'):
+    """S1 临时能力：凭空间密钥换发同空间会话；后续由邀请机制取代。"""
+    if not t:
+        raise HTTPException(400, '缺少空间密钥')
+    with Session(engine) as db:
+        space = db.scalar(select(Space).where(Space.token_hash == hashlib.sha256(t.encode()).hexdigest()))
+        if not space:
+            raise HTTPException(404, '空间不存在或密钥已失效')
+    response = RedirectResponse(to if to.startswith('/') else '/', status_code=302)
+    secure = os.environ.get('QISUSHUO_SECURE_COOKIE') == '1'
+    response.set_cookie('qisushuo_session', t, max_age=30 * 86400, httponly=True, samesite='lax', secure=secure)
+    return response
+
 @app.get('/{path:path}')
 def frontend(path: str):
     # Never expose source code, databases, dependency folders, or environment files.
-    allowed={'':'index.html','index.html':'index.html','preview.html':'index.html',
+    allowed={'':'index.html','index.html':'index.html','preview.html':'index.html','manifest-online.webmanifest':'manifest-online.webmanifest',
              'app.html':'app.html','manifest.webmanifest':'manifest.webmanifest','sw.js':'sw.js',
              'icons/icon-192.png':'icons/icon-192.png','icons/icon-512.png':'icons/icon-512.png',
              'favicon.ico':'icons/icon-192.png'}

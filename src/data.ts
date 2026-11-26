@@ -38,14 +38,15 @@ function saveLocal(state:LocalState,row:Row):Row{
   state.records=old?state.records.map(r=>r.id===saved.id?saved:r):[...state.records,saved];
   state.revisions.push(structuredClone(saved));return saved;
 }
+export class ApiError extends Error{status:number;constructor(message:string,status:number){super(message);this.status=status;}}
 async function api(path:string,data?:unknown,method?:string){
   const response=await fetch('/api/'+path,{method:method||(data?'POST':'GET'),credentials:'same-origin',headers:{'Content-Type':'application/json','X-Qisushuo':'workspace'},body:data?JSON.stringify(data):undefined});
   let body;try{body=await response.json();}catch{throw new Error('服务暂时不可用，请稍后重试');}
-  if(!response.ok)throw new Error(typeof body.detail==='string'?body.detail:'请检查填写的内容后重试');
+  if(!response.ok)throw new ApiError(typeof body.detail==='string'?body.detail:'请检查填写的内容后重试',response.status);
   return body;
 }
 export const repo={
-  async boot():Promise<{records:Row[];ai_available:boolean}>{
+  async boot():Promise<{records:Row[];ai_available:boolean;workspace?:string;user?:{id:string;email:string;name:string;role:string}|null}>{
     if(!offline)return api('bootstrap');
     if(!localDb)localDb=await new Promise((resolve,reject)=>{const request=indexedDB.open('qisushuo-personal-research',1);request.onupgradeneeded=()=>request.result.createObjectStore('workspace');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(new Error('当前浏览器无法保存资料，请允许本地存储后重新打开'));});
     const records=await transact(true,state=>{const current=state===undefined?{records:structuredClone(initialRows),revisions:structuredClone(initialRows)}:requireState(state);return {state:current,value:current.records};});
@@ -68,6 +69,17 @@ export const repo={
     if(!offline)return (await api('restore',data)).records;
     return transact(true,()=>{const state={records:structuredClone(data.records),revisions:structuredClone(data.revisions||data.records)};return {state,value:state.records};});
   },
+  async me():Promise<{user:{id:string;email:string;name:string}|null;workspace:string;role:string;anonymous:boolean;spaces:{id:string;role:string}[];members:{email:string;role:string;joined:string}[]}>{return api('me');},
+  async requestCode(email:string):Promise<{sent:boolean;expires_in:number;email:string;dev_code?:string}>{return api('auth/request-code',{email});},
+  async verify(email:string,code:string,invite:string=''){return api('auth/verify',{email,code,invite});},
+  async adminOverview():Promise<{workspace:string;role:string;members:{user_id:string;name:string;email:string;role:string;grants:number;grant_ids:string[]}[];records:{id:string;title:string;kind:string}[]}>{return api('admin/overview');},
+  async setMemberRole(userId:string,role:string){return api('admin/members/'+encodeURIComponent(userId),{role},'PATCH');},
+  async setGrants(userId:string,recordIds:string[]){return api('admin/grants',{user_id:userId,record_ids:recordIds});},
+  async loginPassword(username:string,password:string){return api('auth/password',{username,password});},
+  async loginExpertCode(code:string){return api('auth/expert-code',{code});},
+  async logout():Promise<{ok:boolean}>{return api('auth/logout',{},'POST');},
+  async invite(role:string,hours:number):Promise<{token:string;url:string;role:string;hours:number}>{return api('spaces/invites',{role,hours});},
+  async acceptInvite(token:string):Promise<{workspace:string;role:string}>{return api('invites/accept',{token});},
   async ask(question:string,rows:Row[],ids:string[]=[],purpose='answer',scope='all'):Promise<Answer>{
     if(!offline)return api('assistant',{question,source_ids:ids,purpose,scope});
     const hits=rank(rows.filter(r=>['knowledge','source','expert'].includes(r.kind)&&(scope==='all'||r.kind===scope)&&(!ids.length||ids.includes(r.id))),question,Boolean(ids.length)).slice(0,5);
