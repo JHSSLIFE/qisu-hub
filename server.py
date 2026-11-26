@@ -1131,6 +1131,32 @@ def admin_revoke_expert(user_id: str, request: Request):
     return {'user_id': user_id, 'codes': codes, 'sessions': kicked}
 
 
+@app.post('/api/admin/purge-examples')
+def admin_purge_examples(request: Request):
+    """清空示例记录（example=true）：连记录、版本、全文索引一起删。仅管理员。"""
+    actor = resolve_actor(request)
+    require_admin(actor, request, 'admin.purge')
+    removed = 0
+    with Session(engine) as db:
+        rows = db.scalars(select(Record).where(Record.workspace_id == actor['space_id'])).all()
+        conn = db.connection()
+        for row in rows:
+            try:
+                data = json.loads(row.payload)
+            except Exception:
+                continue
+            if data.get('example') is True:
+                conn.exec_driver_sql('DELETE FROM knowledge_search WHERE workspace_id=? AND record_id=?',
+                                     (actor['space_id'], row.id))
+                conn.exec_driver_sql('DELETE FROM source_versions WHERE workspace_id=? AND record_id=?',
+                                     (actor['space_id'], row.id))
+                db.delete(row)
+                removed += 1
+        db.commit()
+    log_event('admin.purge', actor, request, resource='examples', detail='%d 条示例' % removed)
+    return {'removed': removed}
+
+
 @app.get('/api/admin/audit')
 def admin_audit(request: Request, limit: int = 50):
     actor = resolve_actor(request)
