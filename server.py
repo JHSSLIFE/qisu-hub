@@ -73,8 +73,15 @@ class Audit(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     workspace_id: Mapped[str] = mapped_column(String, index=True)
     action: Mapped[str] = mapped_column(String)
-    record_id: Mapped[str] = mapped_column(String)
+    record_id: Mapped[str] = mapped_column(String, default='')
     created: Mapped[str] = mapped_column(String)
+    # 谁做的、结果如何——V1 只有 workspace，出事后无法追责
+    actor_id: Mapped[str] = mapped_column(String, default='')
+    actor_role: Mapped[str] = mapped_column(String, default='')
+    result: Mapped[str] = mapped_column(String, default='ok')
+    ip: Mapped[str] = mapped_column(String, default='')
+    ua: Mapped[str] = mapped_column(String, default='')
+    detail: Mapped[str] = mapped_column(String, default='')
 
 
 class User(Base):
@@ -144,6 +151,26 @@ def rate(key: str, limit: int, window: float = 600):
     queue.append(tick)
 
 
+def log_event(action: str, actor=None, request=None, resource: str = '', result: str = 'ok', detail: str = ''):
+    """审计只记“谁、做了什么、结果”，不记正文。失败绝不影响主流程。"""
+    try:
+        actor = actor or {}
+        with Session(engine) as db:
+            db.add(Audit(id=uuid.uuid4().hex,
+                         workspace_id=actor.get('space_id', ''),
+                         action=action[:60], record_id=(resource or '')[:200],
+                         created=now(),
+                         actor_id=actor.get('user_id', ''),
+                         actor_role=actor.get('role', ''),
+                         result=result[:20],
+                         ip=(request.client.host if request is not None and request.client else '')[:60],
+                         ua=((request.headers.get('user-agent') or '')[:200] if request is not None else ''),
+                         detail=(detail or '')[:300]))
+            db.commit()
+    except Exception:
+        pass
+
+
 def is_admin(role: str) -> bool:
     return role in ('owner', 'admin')
 
@@ -174,8 +201,9 @@ def can_see(row: dict, actor, db: Session) -> bool:
         return bool(grant)
     return not row.get('expertUserId')
 
-def require_admin(actor):
+def require_admin(actor, request=None, action: str = 'admin'):
     if not is_admin(actor['role']):
+        log_event(action, actor, request, result='denied', detail='需要管理员权限')
         raise HTTPException(403, '需要管理员权限')
 
 def role_for(db: Session, user_id: str, space_id: str) -> str:
@@ -210,8 +238,45 @@ class ExpertCode(Base):
     created: Mapped[str] = mapped_column(String)
     expires: Mapped[str] = mapped_column(String)
     revoked: Mapped[bool] = mapped_column(default=False)
+    # 一码一人：码首次发放时就绑定 user，管理员可先授权、后发给专家
+    user_id: Mapped[str] = mapped_column(String, default='')
+    created_by: Mapped[str] = mapped_column(String, default='')
 
 Base.metadata.create_all(engine)
+
+
+def ensure_columns():
+    """老库平滑升级：缺列就 ALTER，不丢数据。"""
+    want = {
+        'operation_log': [('actor_id', "TEXT DEFAULT ''"), ('actor_role', "TEXT DEFAULT ''"),
+                          ('result', "TEXT DEFAULT ''"), ('ip', "TEXT DEFAULT ''"),
+                          ('ua', "TEXT DEFAULT ''"), ('detail', "TEXT DEFAULT ''")],
+        'expert_codes': [('user_id', "TEXT DEFAULT ''"), ('created_by', "TEXT DEFAULT ''")],
+    }
+    with engine.begin() as con:
+        for table, cols in want.items():
+            have = {row[1] for row in con.exec_driver_sql('pragma table_info(%s)' % table)}
+            for name, ddl in cols:
+                if name not in have:
+                    con.exec_driver_sql('alter table %s add column %s %s' % (table, name, ddl))
+
+
+ensure_columns()
+
+
+def backfill_expert_codes():
+    """旧码没有 user_id：按历史规则反推身份并回填，让管理界面能显示“生效中”。"""
+    with engine.begin() as con:
+        rows = con.exec_driver_sql("select code_hash from expert_codes where coalesce(user_id,'')=''").fetchall()
+        for (digest,) in rows:
+            hit = con.exec_driver_sql("select id from users where email = ?",
+                                      ('expert-%s@guest.local' % digest[:12],)).fetchone()
+            if hit:
+                con.exec_driver_sql("update expert_codes set user_id = ? where code_hash = ?", (hit[0], digest))
+
+
+backfill_expert_codes()
+
 with engine.begin() as con:
     con.exec_driver_sql("CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_search USING fts5(workspace_id UNINDEXED, record_id UNINDEXED, title, body, tags, tokenize='trigram')")
 
@@ -409,6 +474,7 @@ def versions(record_id: str, request: Request):
 def save_record(data: dict, request: Request):
     actor = resolve_actor(request)
     if not can_write(actor['role']):
+        log_event('record.write', actor, request, result='denied', detail='角色只读')
         raise HTTPException(403, '当前身份只能查看资料')
     space = actor['space_id']
     with Session(engine) as db:
@@ -423,6 +489,7 @@ class ImportRequest(BaseModel):
 def import_records(data: ImportRequest,request: Request):
     actor = resolve_actor(request)
     if not can_write(actor['role']):
+        log_event('record.import', actor, request, result='denied', detail='角色只读')
         raise HTTPException(403, '当前身份不能导入资料')
     space = actor['space_id']
     with Session(engine) as db:
@@ -454,7 +521,7 @@ def search(q: str,request: Request):
 @app.get('/api/export')
 def export_workspace(request: Request):
     actor = resolve_actor(request)
-    require_admin(actor)
+    require_admin(actor, request, 'export')
     space = actor['space_id']
     with Session(engine) as db:
         records=[json.loads(r.payload) for r in db.scalars(select(Record).where(Record.workspace_id==space))]
@@ -464,7 +531,7 @@ def export_workspace(request: Request):
 @app.post('/api/restore')
 def restore_workspace(data: dict,request: Request):
     actor=resolve_actor(request)
-    require_admin(actor)
+    require_admin(actor, request, 'restore')
     space=actor['space_id']
     if data.get('format')!='qisushuo-backup' or data.get('schema')!=1 or not isinstance(data.get('records'),list) or len(data['records'])>2000:
         raise HTTPException(422,'这不是有效的耆宿说备份文件')
@@ -813,12 +880,16 @@ def login_password(data: PasswordLogin, request: Request, response: Response):
     with Session(engine) as db:
         cred = db.get(Credential, username)
         if not cred or cred.disabled or not verify_password(password, cred.password_hash):
+            log_event('auth.password', {'user_id': cred.user_id if cred else ''}, request,
+                      result='denied', detail='凭据不正确:' + username)
             raise HTTPException(401, '用户名或密码不正确')
         user = db.get(User, cred.user_id)
         if not user:
             raise HTTPException(401, '账号状态异常，请联系管理员')
         space_id, role = resolve_login_space(db, user.id, request)
-        return issue_login(db, user, space_id, role, request, response)
+        result = issue_login(db, user, space_id, role, request, response)
+        log_event('auth.password', {'user_id': user.id, 'space_id': space_id, 'role': role}, request)
+        return result
 
 @app.post('/api/auth/expert-code')
 def login_expert_code(data: ExpertLogin, request: Request, response: Response):
@@ -833,18 +904,23 @@ def login_expert_code(data: ExpertLogin, request: Request, response: Response):
         record = db.get(ExpertCode, digest)
         if not record or record.revoked or record.expires < now():
             raise HTTPException(401, '邀请码无效或已过期')
-        email = 'expert-%s@guest.local' % digest[:12]
-        user = db.scalar(select(User).where(User.email == email))
+        user = db.get(User, record.user_id) if record.user_id else None
         if not user:
-            user = User(id=uuid.uuid4().hex, email=email, name=(record.label or '外部专家')[:40], created=now())
-            db.add(user)
-            db.flush()
+            # 兼容旧码：同一码 -> 同一身份（新码一律在发放时绑定 user_id）
+            email = 'expert-%s@guest.local' % digest[:12]
+            user = db.scalar(select(User).where(User.email == email))
+            if not user:
+                user = User(id=uuid.uuid4().hex, email=email, name=(record.label or '外部专家')[:40], created=now())
+                db.add(user)
+                db.flush()
         member = db.get(Membership, (user.id, record.space_id))
         if not member:
             member = Membership(user_id=user.id, space_id=record.space_id, role=record.role, created=now())
             db.add(member)
             db.flush()
-        return issue_login(db, user, record.space_id, member.role, request, response)
+        result = issue_login(db, user, record.space_id, member.role, request, response)
+        log_event('auth.expert', {'user_id': user.id, 'space_id': record.space_id, 'role': member.role}, request)
+        return result
 
 def seed_access():
     """平台下发的凭据在本地测试时的临时入口；生产由平台系统写入同一张表。"""
@@ -894,21 +970,25 @@ class GrantSet(BaseModel):
 @app.get('/api/admin/overview')
 def admin_overview(request: Request):
     actor = resolve_actor(request)
-    require_admin(actor)
+    require_admin(actor, request, 'admin.overview')
     with Session(engine) as db:
         members = []
         for member in db.scalars(select(Membership).where(Membership.space_id == actor['space_id']).order_by(Membership.created)):
             user = db.get(User, member.user_id)
             grant_rows = db.scalars(select(ExpertGrant).where(ExpertGrant.workspace_id == actor['space_id'], ExpertGrant.user_id == member.user_id))
             grant_ids = [g.record_id for g in grant_rows]
-            members.append({'user_id': member.user_id, 'name': user.name if user else '', 'email': user.email if user else '', 'role': member.role, 'grants': len(grant_ids), 'grant_ids': grant_ids})
+            info = {'user_id': member.user_id, 'name': user.name if user else '', 'email': user.email if user else '',
+                    'role': member.role, 'grants': len(grant_ids), 'grant_ids': grant_ids}
+            if member.role == 'expert':
+                info['code'] = code_status(db, actor['space_id'], member.user_id)
+            members.append(info)
         records = [{'id': row['id'], 'title': row['title'], 'kind': row['kind']} for row in visible_records(db, actor) if not row.get('expertUserId')]
         return {'workspace': actor['space_id'], 'role': actor['role'], 'members': members, 'records': records}
 
 @app.patch('/api/admin/members/{user_id}')
 def admin_set_role(user_id: str, data: RolePatch, request: Request):
     actor = resolve_actor(request)
-    require_admin(actor)
+    require_admin(actor, request, 'admin.role')
     if user_id == actor['user_id']:
         raise HTTPException(422, '不能修改自己的角色')
     role = data.role if data.role in ROLES else ''
@@ -927,7 +1007,7 @@ def admin_set_role(user_id: str, data: RolePatch, request: Request):
 @app.post('/api/admin/grants')
 def admin_set_grants(data: GrantSet, request: Request):
     actor = resolve_actor(request)
-    require_admin(actor)
+    require_admin(actor, request, 'admin.grants')
     with Session(engine) as db:
         member = db.get(Membership, (data.user_id, actor['space_id']))
         if not member or member.role != 'expert':
@@ -941,6 +1021,134 @@ def admin_set_grants(data: GrantSet, request: Request):
             db.delete(existing[record_id])
         db.commit()
         return {'user_id': data.user_id, 'grants': len(wanted)}
+
+CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'  # 去掉 I/O/0/1，避免口头传达出错
+
+
+def gen_expert_code() -> str:
+    raw = ''.join(secrets.choice(CODE_ALPHABET) for _ in range(8))
+    return raw[:4] + '-' + raw[4:]
+
+
+def code_status(db: Session, space_id: str, user_id: str) -> dict:
+    rows = list(db.scalars(select(ExpertCode).where(ExpertCode.space_id == space_id,
+                                                   ExpertCode.user_id == user_id)))
+    live = [r for r in rows if not r.revoked and r.expires >= now()]
+    live.sort(key=lambda r: r.expires, reverse=True)
+    if live:
+        return {'state': 'active', 'expires': live[0].expires}
+    if rows:
+        return {'state': 'revoked' if all(r.revoked for r in rows) else 'expired',
+                'expires': max(r.expires for r in rows)}
+    return {'state': 'none', 'expires': ''}
+
+
+def issue_expert_code(db: Session, actor, user_id: str, name: str, days: int) -> dict:
+    code = gen_expert_code()
+    digest = hashlib.sha256(re.sub(r'[^0-9A-Za-z]', '', code).upper().encode()).hexdigest()
+    expires = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
+    db.add(ExpertCode(code_hash=digest, space_id=actor['space_id'], role='expert', label=name,
+                      created=now(), expires=expires, revoked=False,
+                      user_id=user_id, created_by=actor['user_id']))
+    db.commit()
+    return {'code': code, 'expires': expires, 'days': days, 'url': '/?code=' + code}
+
+
+class ExpertCreate(BaseModel):
+    name: str
+    days: int = 30
+
+
+class CodeReset(BaseModel):
+    days: int = 30
+
+
+@app.post('/api/admin/experts')
+def admin_create_expert(data: ExpertCreate, request: Request):
+    """建专家账号 + 绑定一次性发放的专属邀请码（明文只在这里出现一次）。"""
+    actor = resolve_actor(request)
+    require_admin(actor, request, 'admin.expert.create')
+    name = (data.name or '').strip()[:40]
+    if not name:
+        raise HTTPException(422, '请填写专家姓名')
+    days = max(1, min(int(data.days or 30), 365))
+    with Session(engine) as db:
+        user = User(id=uuid.uuid4().hex,
+                    email='expert-%s@guest.local' % uuid.uuid4().hex[:12],
+                    name=name, created=now())
+        db.add(user)
+        db.flush()
+        db.add(Membership(user_id=user.id, space_id=actor['space_id'], role='expert', created=now()))
+        db.commit()
+        payload = issue_expert_code(db, actor, user.id, name, days)
+        user_id = user.id
+    log_event('admin.expert.create', actor, request, resource=user_id, detail=name)
+    return {'user_id': user_id, 'name': name, **payload}
+
+
+@app.post('/api/admin/experts/{user_id}/code')
+def admin_reset_expert_code(user_id: str, data: CodeReset, request: Request):
+    """重置：旧码全部作废，生成新码（旧链接立刻失效）。"""
+    actor = resolve_actor(request)
+    require_admin(actor, request, 'admin.expert.reset')
+    days = max(1, min(int(data.days or 30), 365))
+    with Session(engine) as db:
+        member = db.get(Membership, (user_id, actor['space_id']))
+        if not member or member.role != 'expert':
+            raise HTTPException(422, '目标不是本空间的专家账号')
+        user = db.get(User, user_id)
+        for row in db.scalars(select(ExpertCode).where(ExpertCode.space_id == actor['space_id'],
+                                                       ExpertCode.user_id == user_id)):
+            row.revoked = True
+        db.commit()
+        payload = issue_expert_code(db, actor, user_id, user.name if user else '外部专家', days)
+    log_event('admin.expert.reset', actor, request, resource=user_id)
+    return {'user_id': user_id, **payload}
+
+
+@app.post('/api/admin/experts/{user_id}/revoke')
+def admin_revoke_expert(user_id: str, request: Request):
+    """撤销：作废全部码并踢掉该专家所有在线会话。"""
+    actor = resolve_actor(request)
+    require_admin(actor, request, 'admin.expert.revoke')
+    with Session(engine) as db:
+        member = db.get(Membership, (user_id, actor['space_id']))
+        if not member or member.role != 'expert':
+            raise HTTPException(422, '目标不是本空间的专家账号')
+        codes = 0
+        for row in db.scalars(select(ExpertCode).where(ExpertCode.space_id == actor['space_id'],
+                                                       ExpertCode.user_id == user_id)):
+            row.revoked = True
+            codes += 1
+        kicked = 0
+        for s_row in db.scalars(select(LoginSession).where(LoginSession.user_id == user_id,
+                                                           LoginSession.revoked == False)):
+            s_row.revoked = True
+            kicked += 1
+        db.commit()
+    log_event('admin.expert.revoke', actor, request, resource=user_id,
+              detail='codes=%d sessions=%d' % (codes, kicked))
+    return {'user_id': user_id, 'codes': codes, 'sessions': kicked}
+
+
+@app.get('/api/admin/audit')
+def admin_audit(request: Request, limit: int = 50):
+    actor = resolve_actor(request)
+    require_admin(actor, request, 'admin.audit')
+    limit = max(1, min(int(limit or 50), 200))
+    with Session(engine) as db:
+        rows = list(db.scalars(select(Audit).where(Audit.workspace_id == actor['space_id'])
+                               .order_by(Audit.created.desc()).limit(limit)))
+        names = {}
+        for row in rows:
+            if row.actor_id and row.actor_id not in names:
+                user = db.get(User, row.actor_id)
+                names[row.actor_id] = (user.name or user.email) if user else '(已删除)'
+        events = [{'action': r.action, 'result': r.result, 'actor': names.get(r.actor_id, '匿名' if not r.actor_id else r.actor_id),
+                   'role': r.actor_role, 'resource': r.record_id, 'ip': r.ip,
+                   'detail': r.detail, 'created': r.created} for r in rows]
+    return {'events': events}
+
 
 @app.get('/api/join')
 def join_space(t: str = '', to: str = '/'):

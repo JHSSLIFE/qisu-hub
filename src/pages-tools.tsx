@@ -27,37 +27,83 @@ function AccountPanel(){
 }
 
 const ROLE_TEXT:Record<string,string>={owner:'所有者',admin:'管理员',editor:'普通用户',reviewer:'审阅',viewer:'只读',expert:'专家'};
+const CODE_STATE:Record<string,{text:string;tone:'green'|'muted'|'warm'}>={active:{text:'生效中',tone:'green'},expired:{text:'已过期',tone:'warm'},revoked:{text:'已撤销',tone:'muted'},none:{text:'未发码',tone:'muted'}};
+type Member={user_id:string;name:string;email:string;role:string;grants:number;grant_ids:string[];code?:{state:string;expires:string}};
+type AuditRow={action:string;result:string;actor:string;role:string;resource:string;ip:string;detail:string;created:string};
 
 export function PermissionsPage(){
  const a=useApp();
- const [members,setMembers]=useState<{user_id:string;name:string;email:string;role:string;grants:number;grant_ids:string[]}[]>([]);
+ const [members,setMembers]=useState<Member[]>([]);
  const [records,setRecords]=useState<{id:string;title:string;kind:string}[]>([]);
  const [sel,setSel]=useState(''),[checked,setChecked]=useState<string[]>([]);
  const [busy,setBusy]=useState(false),[err,setErr]=useState('');
+ const [name,setName]=useState(''),[days,setDays]=useState(30);
+ const [issued,setIssued]=useState<{name:string;code:string;expires:string}|null>(null);
+ const [events,setEvents]=useState<AuditRow[]>([]);
  const admin=a.user&&(a.user.role==='owner'||a.user.role==='admin');
- function load(){if(!admin)return;repo.adminOverview().then(d=>{setMembers(d.members);setRecords(d.records);}).catch(e=>setErr(e instanceof Error?e.message:'无法读取权限信息'));}
+ function load(){if(!admin)return;repo.adminOverview().then(d=>{setMembers(d.members);setRecords(d.records);}).catch(e=>setErr(e instanceof Error?e.message:'无法读取权限信息'));
+   repo.adminAudit(30).then(d=>setEvents(d.events)).catch(()=>{});}
  useEffect(()=>{load();},[admin]);
  if(!admin)return <><PageHeading eyebrow="PERMISSIONS" title="权限设置" text="仅管理员可访问。"/><div className="panel"><Empty title="没有访问权限" text="权限设置仅对空间所有者与管理员开放。"/></div></>;
  const experts=members.filter(m=>m.role==='expert');
  const current=experts.find(m=>m.user_id===sel);
  function pick(userId:string){setSel(userId);setChecked(experts.find(m=>m.user_id===userId)?.grant_ids||[]);}
  async function changeRole(userId:string,role:string){setBusy(true);try{await repo.setMemberRole(userId,role);a.notify('角色已更新');load();}catch(e){a.notify(e instanceof Error?e.message:'修改失败',true);}finally{setBusy(false);}}
- async function saveGrants(){if(!current)return;setBusy(true);try{await repo.setGrants(current.user_id,checked);a.notify('专家可见范围已更新');load();}catch(e){a.notify(e instanceof Error?e.message:'保存失败',true);}finally{setBusy(false);}}
+ async function saveGrants(){if(!current)return;setBusy(true);try{await repo.setGrants(current.user_id,checked);a.notify('专家可见范围已更新，对方刷新后生效');load();}catch(e){a.notify(e instanceof Error?e.message:'保存失败',true);}finally{setBusy(false);}}
+ async function createExpert(){const n=name.trim();if(!n)return;setBusy(true);try{const r=await repo.adminCreateExpert(n,days);setIssued({name:r.name,code:r.code,expires:r.expires});setName('');a.notify('已创建专家并生成专属邀请码');load();}catch(e){a.notify(e instanceof Error?e.message:'创建失败',true);}finally{setBusy(false);}}
+ async function resetCode(userId:string){setBusy(true);try{const r=await repo.adminResetExpertCode(userId,days);const who=members.find(m=>m.user_id===userId);setIssued({name:who?.name||'专家',code:r.code,expires:r.expires});a.notify('已重置，旧链接立即失效');load();}catch(e){a.notify(e instanceof Error?e.message:'重置失败',true);}finally{setBusy(false);}}
+ async function revokeExpert(userId:string){if(!confirm('撤销后该专家的邀请码与在线会话立即失效，确定？'))return;setBusy(true);try{const r=await repo.adminRevokeExpert(userId);a.notify('已撤销，踢出 '+r.sessions+' 个会话');load();}catch(e){a.notify(e instanceof Error?e.message:'撤销失败',true);}finally{setBusy(false);}}
+ const link=issued?location.origin+'/?code='+issued.code:'';
+ const copy=()=>{if(!link)return;void navigator.clipboard?.writeText(link);a.notify('链接已复制，可直接发给专家');};
+
  return <><PageHeading eyebrow="PERMISSIONS" title="权限设置" text="角色决定能做什么，专家授权决定能看到什么。两者都在服务端校验。"/>
   {err&&<p className="model-status-copy">{err}</p>}
+
+  {issued&&<section className="settings-panel"><SectionTitle title="邀请码（只显示这一次）" sub="关闭后无法再查看，只能重置生成新的"/>
+   <div className="panel"><div className="settings-row"><div className="settings-row-icon"><Icon name="Link2" size={21}/></div>
+    <div><h3 style={{fontFamily:'ui-monospace,monospace',letterSpacing:2,fontSize:18}}>{issued.code}</h3>
+     <p>{issued.name} · 有效至 {issued.expires.slice(0,10)} · 可多设备登录，到期或撤销即失效</p>
+     <p className="invite-url">{link}</p></div>
+    <button className="btn primary" onClick={copy}>复制链接</button></div></div>
+  </section>}
+
   <section className="settings-panel"><SectionTitle title="成员与角色" sub="普通用户看不到本页，也无法调用相关接口"/>
    <div className="panel">{members.map(m=><div className="settings-row" key={m.user_id}><div className="settings-row-icon"><Icon name="Users" size={21}/></div><div><h3>{m.name||m.email}{m.user_id===a.user?.id?'（我）':''}</h3><p>{m.email} · {m.role==='expert'?'可见资料 '+m.grants+' 条':'可查看全部资料'}</p></div>
     {m.user_id===a.user?.id?<Badge tone="green">{ROLE_TEXT[m.role]||m.role}</Badge>:
      <select value={m.role} disabled={busy} onChange={e=>void changeRole(m.user_id,e.target.value)} aria-label={'角色 '+m.email}><option value="admin">管理员</option><option value="editor">普通用户</option><option value="expert">专家</option><option value="viewer">只读</option></select>}
    </div>)}</div>
   </section>
+
+  <section className="settings-panel"><SectionTitle title="专家与邀请码" sub="一位专家一个码：码绑定身份，不同专家的资料互不可见"/>
+   <div className="settings-row"><div className="settings-row-icon"><Icon name="Users" size={21}/></div>
+    <div><h3>新建专家</h3><p>填姓名即生成专属邀请码，随后在下方为他勾选可见资料</p></div>
+    <input value={name} onChange={e=>setName(e.target.value)} placeholder="专家姓名" aria-label="专家姓名" style={{width:130}}/>
+    <select value={days} onChange={e=>setDays(Number(e.target.value))} aria-label="有效期"><option value={7}>7 天</option><option value={30}>30 天</option><option value={90}>90 天</option><option value={365}>1 年</option></select>
+    <button className="btn primary" disabled={busy||!name.trim()} onClick={()=>void createExpert()}>生成邀请码</button></div>
+   {experts.length?experts.map(m=>{const cs=CODE_STATE[m.code?.state||'none']||CODE_STATE.none;return <div className="settings-row" key={m.user_id}>
+     <div className="settings-row-icon"><Icon name="ShieldCheck" size={21}/></div>
+     <div><h3>{m.name||m.email}</h3><p>可见资料 {m.grants} 条{m.code?.expires?' · 到期 '+m.code.expires.slice(0,10):''}</p></div>
+     <Badge tone={cs.tone}>{cs.text}</Badge>
+     <button className="text-btn" disabled={busy} onClick={()=>void resetCode(m.user_id)}>重置码</button>
+     <button className="text-btn" disabled={busy} onClick={()=>void revokeExpert(m.user_id)}>撤销</button>
+    </div>}):<p className="model-status-copy">还没有专家账号。上面填姓名即可创建第一位。</p>}
+  </section>
+
   <section className="settings-panel"><SectionTitle title="专家资料隔离" sub="未勾选的资料，专家在列表、检索、导出中都不可见"/>
    {experts.length?<>
     <div className="settings-row"><div className="settings-row-icon"><Icon name="ShieldCheck" size={21}/></div><div><h3>选择专家</h3><p>按专家逐一分配可见资料</p></div>
      <select value={sel} onChange={e=>pick(e.target.value)} aria-label="选择专家"><option value="">请选择</option>{experts.map(m=><option key={m.user_id} value={m.user_id}>{m.name||m.email}</option>)}</select></div>
     {current&&<div className="panel" style={{maxHeight:340,overflow:'auto'}}>{records.map(r=><label className="grant-row" key={r.id}><input type="checkbox" checked={checked.includes(r.id)} onChange={e=>setChecked(prev=>e.target.checked?[...prev,r.id]:prev.filter(id=>id!==r.id))}/><span>{r.title}</span><small>{r.kind}</small></label>)}</div>}
     {current&&<div className="settings-row"><div><h3>已选 {checked.length} 条</h3><p>保存后立即生效，专家需要重新打开页面</p></div><button className="btn primary" disabled={busy} onClick={()=>void saveGrants()}>保存授权</button></div>}
-   </>:<p className="model-status-copy">当前空间还没有专家账号。专家用邀请码登录后会自动出现在这里。</p>}
+   </>:<p className="model-status-copy">当前空间还没有专家账号。</p>}
+  </section>
+
+  <section className="settings-panel"><SectionTitle title="最近操作（审计）" sub="登录、写入、导出、授权、越权拒绝都会留痕，只读不可改"/>
+   {events.length?<div className="panel">{events.slice(0,20).map((e,i)=><div className="grant-row" key={i}>
+     <small style={{width:112,flex:'0 0 112px'}}>{e.created.slice(5,16).replace('T',' ')}</small>
+     <span>{e.actor}{e.role?'（'+(ROLE_TEXT[e.role]||e.role)+'）':''} · {e.action}{e.detail?' · '+e.detail:''}</span>
+     <small style={{color:e.result==='denied'?'#a32d2d':'#8a897f'}}>{e.result==='denied'?'已拒绝':e.result==='ok'?'成功':'—'}</small>
+    </div>)}</div>:<p className="model-status-copy">暂无记录。</p>}
   </section>
  </>;
 }

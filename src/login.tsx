@@ -12,12 +12,15 @@ const CODE_RE=/^[0-9A-Za-z]{6,16}$/;
  * 两种表单互不共享状态，切换不清空对方输入，也不触发对方的请求。
  */
 export function LoginPage({onDone}:{onDone:()=>void}){
- const legacyInvite=new URLSearchParams(location.search).get('invite')||'';
- const [method,setMethod]=useState<AuthMethodId>(DEFAULT_AUTH_METHOD);
+ const params=new URLSearchParams(location.search);
+ const legacyInvite=params.get('invite')||'';
+ // 专家链接直登：/?code=XXXX-XXXX —— 读参数预填，点一次即可进入
+ const urlCode=(params.get('code')||'').replace(/[^0-9A-Za-z]/g,'').toUpperCase().slice(0,16);
+ const [method,setMethod]=useState<AuthMethodId>(urlCode?'expert':DEFAULT_AUTH_METHOD);
 
  const [username,setUsername]=useState(''),[password,setPassword]=useState('');
  const [pwBusy,setPwBusy]=useState(false),[pwErr,setPwErr]=useState('');
- const [code,setCode]=useState('');
+ const [code,setCode]=useState(urlCode);
  const [exBusy,setExBusy]=useState(false),[exErr,setExErr]=useState('');
 
  const current=authMethodById(method);
@@ -73,7 +76,9 @@ export function LoginPage({onDone}:{onDone:()=>void}){
     </form>
    :<form className="panel login-card" id="auth-panel-expert" data-auth-method="expert" onSubmit={e=>{e.preventDefault();void submitExpert();}}>
      <h2>专家邀请码登录</h2>
-     <p className="login-hint">输入管理员发给你的邀请码。邀请码有有效期，进入后只能看到授权给你的资料。</p>
+     {urlCode
+      ?<p className="login-hint">已从链接读取邀请码，点「进入空间」即可。链接有时效，过期请向项目负责人索取新的。</p>
+      :<p className="login-hint">输入管理员发给你的邀请码。邀请码有有效期，进入后只能看到授权给你的资料。</p>}
      <label>邀请码
       <input value={code} onChange={e=>{setCode(e.target.value.replace(/[^0-9A-Za-z]/g,'').toUpperCase().slice(0,16));setExErr('');}}
         placeholder="如 QISU8X2K" required autoCapitalize="characters" spellCheck={false} autoComplete="one-time-code" autoFocus/>
