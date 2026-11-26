@@ -10,10 +10,11 @@
 # 可覆盖的变量：
 #   QISU_DOMAIN=xxx.com  QISU_BRANCH=product-v3.3  QISU_ADMIN_USER=jiahao
 #
-# 装什么：Python(venv) · Node 22 · Caddy · systemd 服务 · 每日备份 · ufw
+# 装什么：Python(venv) · Caddy · systemd 服务 · 每日备份 · ufw
+# 前端用仓库内 prebuilt/ 产物（服务器不构建，避免跨平台二进制问题）
 set -euo pipefail
 
-SCRIPT_VER="2026-11-26-3"
+SCRIPT_VER="2026-11-26-4"
 DOMAIN="${QISU_DOMAIN:-qisushuo.com}"
 REPO="${QISU_REPO:-https://github.com/JHSSLIFE/qisu-hub.git}"
 BRANCH="${QISU_BRANCH:-product-v3.3}"
@@ -46,24 +47,8 @@ mkdir -p "$DATA" "$BK_DIR" "$LOG_DIR" /var/lib/caddy /etc/caddy
 chown -R qisu:qisu /opt/qisu "$DATA" "$BK_DIR" "$LOG_DIR"
 echo "  用户 qisu · 数据 $DATA · 备份 $BK_DIR"
 
-log "3/9 Node"
-need_node=1
-if command -v node >/dev/null 2>&1; then
-  major="$(node -v | cut -c2- | cut -d. -f1)"
-  [ "$major" -ge 18 ] 2>/dev/null && need_node=0
-fi
-if [ "$need_node" = "1" ]; then
-  case "$(uname -m)" in
-    x86_64) NARCH=x64 ;;
-    aarch64|arm64) NARCH=arm64 ;;
-    *) die "不支持的架构：$(uname -m)" ;;
-  esac
-  curl -fsSL "https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-linux-${NARCH}.tar.xz" -o /tmp/node.tar.xz \
-    || die "下载 Node 失败（服务器能否访问 nodejs.org？）"
-  tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
-  rm -f /tmp/node.tar.xz
-fi
-echo "  node $(node -v) / npm $(npm -v)"
+log "3/9 运行时"
+echo "  python $(python3 -V 2>&1 | cut -d' ' -f2) / sqlite $(sqlite3 --version | cut -d' ' -f1)"
 
 log "4/9 拉取代码（$BRANCH）"
 git config --global --add safe.directory "$APP" 2>/dev/null || true
@@ -78,26 +63,32 @@ else
   echo "  已克隆 $(sudo -u qisu git -C "$APP" rev-parse --short HEAD)"
 fi
 
-log "5/9 构建前端"
+log "5/9 前端产物"
 cd "$APP"
-# lock 是在 macOS 上生成的，缺少 Linux 平台的可选依赖（rollup 原生二进制），
-# npm ci 会装不全导致构建失败，所以这里一律用 npm install 重新解析。
-rm -rf node_modules
-sudo -u qisu npm install --include=dev --no-audit --no-fund >/tmp/qisu-npm.log 2>&1 || { tail -30 /tmp/qisu-npm.log; die "npm install 失败"; }
-# 兜底：显式补当前平台的 rollup 原生包（lock 来自 macOS 时可能缺失）
-case "$(uname -m)" in
-  x86_64) RB="@rollup/rollup-linux-x64-gnu" ;;
-  aarch64|arm64) RB="@rollup/rollup-linux-arm64-gnu" ;;
-  *) RB="" ;;
-esac
-if [ -n "$RB" ] && [ ! -d "node_modules/${RB}" ]; then
-  echo "  补装 $RB"
-  sudo -u qisu npm install --no-save --no-audit --no-fund "$RB" >>/tmp/qisu-npm.log 2>&1 || true
+if [ -f prebuilt/index.html ]; then
+  # 服务器不构建：lock 来自 macOS，缺 Linux 原生二进制，现场 build 必失败
+  rm -rf dist && mkdir -p dist && cp -a prebuilt/. dist/ && rm -f dist/README.md
+  echo "  使用预构建产物：index.html $(du -h dist/index.html | cut -f1) · app.html $(du -h dist/app.html | cut -f1)"
+else
+  echo "  未找到 prebuilt/，尝试现场构建（需要 Node 18+）"
+  if ! command -v node >/dev/null 2>&1; then
+    case "$(uname -m)" in
+      x86_64) NARCH=x64 ;;
+      aarch64|arm64) NARCH=arm64 ;;
+      *) die "不支持的架构：$(uname -m)" ;;
+    esac
+    curl -fsSL "https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-linux-${NARCH}.tar.xz" -o /tmp/node.tar.xz \
+      || die "下载 Node 失败"
+    tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
+    rm -f /tmp/node.tar.xz
+  fi
+  rm -rf node_modules
+  sudo -u qisu npm install --include=dev --no-audit --no-fund >/tmp/qisu-npm.log 2>&1 || { tail -30 /tmp/qisu-npm.log; die "npm install 失败"; }
+  sudo -u qisu npm run build >/tmp/qisu-build.log 2>&1 || { tail -30 /tmp/qisu-build.log; die "构建失败"; }
 fi
-sudo -u qisu npm run build >/tmp/qisu-build.log 2>&1 || { tail -30 /tmp/qisu-build.log; die "构建失败"; }
 [ -f dist/index.html ] || die "缺少 dist/index.html"
-[ "$(stat -c%s dist/index.html)" -gt 50000 ] || die "dist/index.html 过小，构建可能未完成"
-echo "  dist/index.html $(du -h dist/index.html | cut -f1) · dist/app.html $(du -h dist/app.html | cut -f1)"
+[ "$(stat -c%s dist/index.html)" -gt 50000 ] || die "dist/index.html 过小，产物不完整"
+chown -R qisu:qisu "$APP/dist"
 
 log "6/9 Python 环境"
 [ -d "$VENV" ] || python3 -m venv "$VENV"
