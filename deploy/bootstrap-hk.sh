@@ -65,22 +65,27 @@ fi
 echo "  node $(node -v) / npm $(npm -v)"
 
 log "4/9 拉取代码（$BRANCH）"
+git config --global --add safe.directory "$APP" 2>/dev/null || true
 if [ -d "$APP/.git" ]; then
   sudo -u qisu git -C "$APP" fetch -q origin
   sudo -u qisu git -C "$APP" checkout -q "$BRANCH"
   sudo -u qisu git -C "$APP" reset -q --hard "origin/$BRANCH"
-  echo "  已更新到 $(git -C "$APP" rev-parse --short HEAD)"
+  echo "  已更新到 $(sudo -u qisu git -C "$APP" rev-parse --short HEAD)"
 else
   git clone -q --branch "$BRANCH" --single-branch "$REPO" "$APP" || die "克隆失败（仓库是否公开？网络是否可达 GitHub？）"
   chown -R qisu:qisu "$APP"
-  echo "  已克隆 $(git -C "$APP" rev-parse --short HEAD)"
+  echo "  已克隆 $(sudo -u qisu git -C "$APP" rev-parse --short HEAD)"
 fi
 
 log "5/9 构建前端"
 cd "$APP"
-sudo -u qisu npm ci --no-audit --no-fund >/tmp/qisu-npm.log 2>&1 || { tail -20 /tmp/qisu-npm.log; die "npm ci 失败"; }
-sudo -u qisu npm run build >/tmp/qisu-build.log 2>&1 || { tail -20 /tmp/qisu-build.log; die "构建失败"; }
+# lock 是在 macOS 上生成的，缺少 Linux 平台的可选依赖（rollup 原生二进制），
+# npm ci 会装不全导致构建失败，所以这里一律用 npm install 重新解析。
+rm -rf node_modules
+sudo -u qisu npm install --include=dev --no-audit --no-fund >/tmp/qisu-npm.log 2>&1 || { tail -30 /tmp/qisu-npm.log; die "npm install 失败"; }
+sudo -u qisu npm run build >/tmp/qisu-build.log 2>&1 || { tail -30 /tmp/qisu-build.log; die "构建失败"; }
 [ -f dist/index.html ] || die "缺少 dist/index.html"
+[ "$(stat -c%s dist/index.html)" -gt 50000 ] || die "dist/index.html 过小，构建可能未完成"
 echo "  dist/index.html $(du -h dist/index.html | cut -f1) · dist/app.html $(du -h dist/app.html | cut -f1)"
 
 log "6/9 Python 环境"
