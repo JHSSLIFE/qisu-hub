@@ -15,6 +15,11 @@
 	admin off
 }
 
+# www 子域一律 301 永久跳转到根域名（Caddy 自动为 www 也签发证书）
+www.{$QISU_DOMAIN:qisu.localhost} {
+	redir https://{$QISU_DOMAIN:qisu.localhost}{uri} permanent
+}
+
 {$QISU_DOMAIN:qisu.localhost} {
 	encode zstd gzip
 
