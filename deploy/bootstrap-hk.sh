@@ -14,7 +14,7 @@
 # 前端用仓库内 prebuilt/ 产物（服务器不构建，避免跨平台二进制问题）
 set -euo pipefail
 
-SCRIPT_VER="2026-11-26-4"
+SCRIPT_VER="2026-11-26-5"
 DOMAIN="${QISU_DOMAIN:-qisushuo.com}"
 REPO="${QISU_REPO:-https://github.com/JHSSLIFE/qisu-hub.git}"
 BRANCH="${QISU_BRANCH:-product-v3.3}"
@@ -99,7 +99,8 @@ chown -R qisu:qisu "$VENV"
 
 log "7/9 环境变量"
 if [ ! -f "$ENVF" ]; then
-  PASS="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)"
+  PASS="$(tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c 16 || true)"
+  [ -n "$PASS" ] || PASS="qisu$(date +%s | tail -c 9)"
   cat > "$ENVF" <<EOF
 PORT=8080
 QISUSHUO_DATA=$DATA
