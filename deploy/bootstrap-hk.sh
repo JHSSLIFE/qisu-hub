@@ -13,6 +13,7 @@
 # 装什么：Python(venv) · Node 22 · Caddy · systemd 服务 · 每日备份 · ufw
 set -euo pipefail
 
+SCRIPT_VER="2026-11-26-3"
 DOMAIN="${QISU_DOMAIN:-qisushuo.com}"
 REPO="${QISU_REPO:-https://github.com/JHSSLIFE/qisu-hub.git}"
 BRANCH="${QISU_BRANCH:-product-v3.3}"
@@ -31,7 +32,7 @@ die() { printf '\n\033[1;31m!! %s\033[0m\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" = "0" ] || die "请用 root 运行：sudo bash $0"
 
-log "1/9 系统依赖"
+log "1/9 系统依赖（脚本版本 ${SCRIPT_VER}）"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq git curl ca-certificates xz-utils python3 python3-venv python3-pip sqlite3 ufw >/dev/null
@@ -83,6 +84,16 @@ cd "$APP"
 # npm ci 会装不全导致构建失败，所以这里一律用 npm install 重新解析。
 rm -rf node_modules
 sudo -u qisu npm install --include=dev --no-audit --no-fund >/tmp/qisu-npm.log 2>&1 || { tail -30 /tmp/qisu-npm.log; die "npm install 失败"; }
+# 兜底：显式补当前平台的 rollup 原生包（lock 来自 macOS 时可能缺失）
+case "$(uname -m)" in
+  x86_64) RB="@rollup/rollup-linux-x64-gnu" ;;
+  aarch64|arm64) RB="@rollup/rollup-linux-arm64-gnu" ;;
+  *) RB="" ;;
+esac
+if [ -n "$RB" ] && [ ! -d "node_modules/${RB}" ]; then
+  echo "  补装 $RB"
+  sudo -u qisu npm install --no-save --no-audit --no-fund "$RB" >>/tmp/qisu-npm.log 2>&1 || true
+fi
 sudo -u qisu npm run build >/tmp/qisu-build.log 2>&1 || { tail -30 /tmp/qisu-build.log; die "构建失败"; }
 [ -f dist/index.html ] || die "缺少 dist/index.html"
 [ "$(stat -c%s dist/index.html)" -gt 50000 ] || die "dist/index.html 过小，构建可能未完成"
