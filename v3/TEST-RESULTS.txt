@@ -1,0 +1,33 @@
+QISU HUB V3.3 — 2026-11-26
+Browser: in-memory page, mock network and storage; not live API.
+PASS admin five centers
+PASS OCR preview page text
+PASS confirmed OCR asset retains original
+PASS raw OCR preserved
+PASS LLM mock answer
+PASS TTS audio response
+PASS external search results
+PASS fetch page content
+PASS external source saved
+PASS unconfirmed external source excluded
+PASS expert four peers
+PASS expert no global OCR import
+PASS voice inputs present
+PASS ASR transcript with segment index
+PASS confirmed oral searchable
+PASS mobile oral no overflow
+PASS no JS errors []
+
+HTTP proxy: actual local HTTP, mocked upstream; not live API.
+PASS status
+PASS test
+PASS ask
+PASS transcribe
+PASS ocr
+PASS tts
+PASS search
+PASS fetch
+PASS invalid WAV
+PASS invalid model
+PASS cross origin rejected
+PASS missing key rejected

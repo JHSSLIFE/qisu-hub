@@ -281,7 +281,7 @@ with engine.begin() as con:
     con.exec_driver_sql("CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_search USING fts5(workspace_id UNINDEXED, record_id UNINDEXED, title, body, tags, tokenize='trigram')")
 
 SEED = json.loads((ROOT / 'seed.json').read_text())
-KINDS = {'knowledge', 'expert', 'source', 'evidence', 'draft', 'project', 'task', 'note'}
+KINDS = {'knowledge', 'expert', 'source', 'evidence', 'draft', 'project', 'task', 'note', 'oral', 'asset'}
 ID_PATTERN = re.compile(r'^[A-Za-z0-9_-]{1,100}$')
 app = FastAPI(title='耆宿说研究空间', version='1.0.0', docs_url=None, redoc_url=None, openapi_url=None)
 limits = defaultdict(deque)
@@ -1148,6 +1148,33 @@ def admin_audit(request: Request, limit: int = 50):
                    'role': r.actor_role, 'resource': r.record_id, 'ip': r.ip,
                    'detail': r.detail, 'created': r.created} for r in rows]
     return {'events': events}
+
+
+V3_DIR = ROOT / 'v3'
+V3_TYPES = {'.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8',
+            '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
+            '.md': 'text/plain; charset=utf-8', '.txt': 'text/plain; charset=utf-8',
+            '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2'}
+
+
+@app.get('/v3')
+def v3_root():
+    return RedirectResponse('/v3/', status_code=307)
+
+
+@app.get('/v3/{path:path}')
+def v3_asset(path: str):
+    """V3.3 界面（The Living Archive）。只放行前端资源，数据一律走 /api。"""
+    rel = (path or '').strip('/') or 'index.html'
+    target = (V3_DIR / rel).resolve()
+    try:
+        target.relative_to(V3_DIR.resolve())
+    except ValueError:
+        raise HTTPException(404, '页面不存在')
+    if not target.is_file() or target.suffix.lower() not in V3_TYPES:
+        raise HTTPException(404, '页面不存在')
+    return FileResponse(target, media_type=V3_TYPES[target.suffix.lower()],
+                        headers={'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff'})
 
 
 @app.get('/api/join')
