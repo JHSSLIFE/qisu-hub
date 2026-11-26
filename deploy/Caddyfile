@@ -1,0 +1,57 @@
+# QISU HUB 反向代理配置
+#
+# 用法：
+#   1. 把下面的域名改成你的真实域名（或 tailnet 域名）
+#   2. 用环境变量注入： QISU_DOMAIN=qisu.example.com caddy run --config Caddyfile --adapter caddyfile
+#   3. Caddy 会自动申请并续期 Let's Encrypt 证书（需要 80/443 可达、域名已解析到本机）
+#
+# 三条硬约束（漏一条就坏）：
+#   - 必须同域：前端与 /api 同一个域名，否则 SameSite=Lax 的 Cookie 不会随请求发送
+#   - 必须保留 Host 头：server.py 的同源校验拿 Host 比对 Origin，改写 Host 会导致所有写操作 403
+#   - 必须传 X-Forwarded-Proto：登录接口靠它决定 Cookie 是否加 Secure
+{
+	# 本地调试时可打开，避免对外申请证书
+	# auto_https off
+	admin off
+}
+
+{$QISU_DOMAIN:qisu.localhost} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "same-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		-Server
+	}
+
+	# 应用本身已限制 30MB，这里做前置拦截，避免把超大请求体转给后端
+	request_body {
+		max_size 30MB
+	}
+
+	reverse_proxy 127.0.0.1:8080 {
+		# Caddy 默认已保留原始 Host，并按实际协议写入 X-Forwarded-Proto / X-Forwarded-Host，
+		# 因此这三项不要改写（改写 Host 会让 server.py 的同源校验把所有写操作判 403）。
+		header_up X-Real-IP {remote_host}
+		# 后端是单进程 SQLite，超时给足，但不要无限等
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 60s
+		}
+	}
+
+	log {
+		output file {$QISU_LOG:/var/log/caddy/qisu-access.log} {
+			roll_size 20MiB
+			roll_keep 10
+			roll_keep_for 30d
+		}
+		format json
+	}
+
+	# 健康检查直接由代理回答，不打到应用
+	respond /healthz 200
+}

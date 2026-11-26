@@ -1,0 +1,36 @@
+[Unit]
+Description=QISU HUB (FastAPI + SQLite)
+Documentation=https://github.com/JHSSLIFE/qisu-hub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=qisu
+Group=qisu
+WorkingDirectory=/opt/qisu/app
+EnvironmentFile=/opt/qisu/.env
+ExecStart=/opt/qisu/.venv/bin/python server.py
+Restart=always
+RestartSec=3
+# 给 SQLite 留出写盘时间，避免被硬杀
+TimeoutStopSec=20
+KillSignal=SIGINT
+
+# 加固：只允许写数据目录
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/qisu/data
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+
+StandardOutput=append:/var/log/qisu/app.log
+StandardError=append:/var/log/qisu/app.err.log
+
+[Install]
+WantedBy=multi-user.target

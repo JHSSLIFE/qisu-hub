@@ -1,0 +1,12 @@
+[Unit]
+Description=QISU HUB 每日备份
+
+[Service]
+Type=oneshot
+User=qisu
+Group=qisu
+EnvironmentFile=/opt/qisu/.env
+Environment=QISU_BACKUP_DIR=/var/backups/qisu
+ExecStart=/opt/qisu/deploy/backup.sh
+StandardOutput=append:/var/log/qisu/backup.log
+StandardError=append:/var/log/qisu/backup.err.log
