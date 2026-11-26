@@ -68,7 +68,7 @@ INTEGRITY="$(sqlite3 "$TMP/research.sqlite3" 'pragma integrity_check;' 2>&1 | he
 
 RECORDS="$(sqlite3 "$TMP/research.sqlite3" 'select count(*) from records;')"
 USERS="$(sqlite3 "$TMP/research.sqlite3" 'select count(*) from users;')"
-BYTES="$(stat -f%z "$TMP/research.sqlite3" 2>/dev/null || stat -c%s "$TMP/research.sqlite3")"
+BYTES="$(stat -c%s "$TMP/research.sqlite3" 2>/dev/null || stat -f%z "$TMP/research.sqlite3")"
 
 printf 'source=%s\nstamp=%s\nrecords=%s\nusers=%s\nintegrity=%s\n' \
   "$DB" "$STAMP" "$RECORDS" "$USERS" "$INTEGRITY" > "$TMP/manifest.txt"
@@ -77,7 +77,11 @@ OUT="$DEST/qisu-$STAMP.tar.gz"
 tar -czf "$OUT" -C "$TMP" research.sqlite3 manifest.txt || fail "打包失败"
 chmod 600 "$OUT"
 
-SHA="$(shasum -a 256 "$OUT" | awk '{print $1}')"
+if command -v sha256sum >/dev/null 2>&1; then
+  SHA="$(sha256sum "$OUT" | awk '{print $1}')"
+else
+  SHA="$(shasum -a 256 "$OUT" | awk '{print $1}')"
+fi
 printf '%s  %s\n' "$SHA" "$(basename "$OUT")" >> "$DEST/SHA256SUMS"
 
 log "OK  $(basename "$OUT")  ${BYTES}B  records=$RECORDS  users=$USERS  sha256=${SHA:0:16}…"
