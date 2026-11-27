@@ -137,7 +137,7 @@ class Invite(Base):
     used_by: Mapped[str] = mapped_column(String, default='')
     used_at: Mapped[str] = mapped_column(String, default='')
 
-ROLES = {'owner', 'admin', 'editor', 'reviewer', 'viewer', 'expert'}
+ROLES = {'owner', 'admin', 'editor', 'viewer', 'expert'}
 EMAIL_RE = re.compile(r'^[^@\s]{1,64}@[^@\s]{1,190}\.[A-Za-z]{2,10}$')
 CODE_TTL = 600
 CODE_ATTEMPTS = 5
@@ -234,7 +234,7 @@ class ExpertCode(Base):
     __tablename__ = 'expert_codes'
     code_hash: Mapped[str] = mapped_column(String, primary_key=True)
     space_id: Mapped[str] = mapped_column(String, index=True)
-    role: Mapped[str] = mapped_column(String, default='reviewer')
+    role: Mapped[str] = mapped_column(String, default='expert')
     label: Mapped[str] = mapped_column(String, default='')
     created: Mapped[str] = mapped_column(String)
     expires: Mapped[str] = mapped_column(String)
@@ -1087,7 +1087,7 @@ def create_invite(data: InviteRequest, request: Request):
     actor = resolve_actor(request)
     if actor['role'] not in ('owner', 'admin'):
         raise HTTPException(403, '只有空间所有者或管理员可以生成邀请')
-    role = data.role if data.role in ('editor', 'reviewer', 'viewer') else 'editor'
+    role = data.role if data.role in ('editor', 'viewer') else 'editor'
     hours = max(1, min(int(data.hours or 72), 720))
     token = secrets.token_urlsafe(24)
     with Session(engine) as db:
@@ -1257,7 +1257,7 @@ def seed_access():
             if db.get(Space, space_id):
                 digest = hashlib.sha256(code.upper().encode()).hexdigest()
                 record = db.get(ExpertCode, digest)
-                role = os.environ.get('QISUSHUO_EXPERT_ROLE') or 'reviewer'
+                role = os.environ.get('QISUSHUO_EXPERT_ROLE') or 'expert'
                 label = os.environ.get('QISUSHUO_EXPERT_LABEL') or '外部专家'
                 if not record:
                     db.add(ExpertCode(code_hash=digest, space_id=space_id, role=role, label=label,
@@ -1393,7 +1393,7 @@ def admin_create_user(data: AdminUserCreate, request: Request):
         raise HTTPException(422, '用户名需为 3–64 位字母、数字、点、下划线或短横线')
     if not (6 <= len(password) <= 72):
         raise HTTPException(422, '密码长度应为 6–72 位')
-    role = data.role if data.role in ('admin', 'editor', 'reviewer', 'viewer') else 'editor'
+    role = data.role if data.role in ('admin', 'editor', 'viewer') else 'editor'
     with Session(engine) as db:
         if db.get(Credential, username):
             raise HTTPException(409, '该用户名已存在')
