@@ -75,6 +75,7 @@ export const repo={
   async adminOverview():Promise<{workspace:string;role:string;members:{user_id:string;name:string;email:string;role:string;grants:number;grant_ids:string[];code?:{state:string;expires:string}}[];records:{id:string;title:string;kind:string}[]}>{return api('admin/overview');},
   async setMemberRole(userId:string,role:string){return api('admin/members/'+encodeURIComponent(userId),{role},'PATCH');},
   async setGrants(userId:string,recordIds:string[]){return api('admin/grants',{user_id:userId,record_ids:recordIds});},
+  async adminCreateUser(username:string,password:string,role:string,name:string):Promise<{user_id:string;username:string;role:string;name:string}>{return api('admin/users',{username,password,role,name});},
   async adminCreateExpert(name:string,days:number):Promise<{user_id:string;name:string;code:string;expires:string;url:string}>{return api('admin/experts',{name,days});},
   async adminResetExpertCode(userId:string,days:number):Promise<{code:string;expires:string;url:string}>{return api('admin/experts/'+encodeURIComponent(userId)+'/code',{days});},
   async adminRevokeExpert(userId:string):Promise<{codes:number;sessions:number}>{return api('admin/experts/'+encodeURIComponent(userId)+'/revoke',{},'POST');},

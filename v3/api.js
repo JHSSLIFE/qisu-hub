@@ -72,7 +72,8 @@
     adminResetCode: function (id, days) { return call('admin/experts/' + q(id) + '/code', { days: days || 30 }); },
     adminRevoke: function (id) { return call('admin/experts/' + q(id) + '/revoke', {}, 'POST'); },
     adminRole: function (id, role) { return call('admin/members/' + q(id), { role: role }, 'PATCH'); },
-    adminGrants: function (id, ids) { return call('admin/grants', { user_id: id, record_ids: ids }); }
+    adminGrants: function (id, ids) { return call('admin/grants', { user_id: id, record_ids: ids }); },
+    adminCreateUser: function (username, password, role, name) { return call('admin/users', { username: username, password: password, role: role || 'editor', name: name || '' }); }
   };
 
   // 后端尚未提供 AI 代理前，明确标记，避免界面误判为已连通

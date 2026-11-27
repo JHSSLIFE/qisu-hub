@@ -1373,6 +1373,42 @@ class CodeReset(BaseModel):
     days: int = 30
 
 
+
+class AdminUserCreate(BaseModel):
+    username: str
+    password: str
+    role: str = 'editor'
+    name: str = ''
+
+
+@app.post('/api/admin/users')
+def admin_create_user(data: AdminUserCreate, request: Request):
+    """管理员开通用户账号并设置初始密码。仅 owner/admin；密码 PBKDF2 哈希存储。"""
+    actor = resolve_actor(request)
+    require_admin(actor, request, 'admin.user.create')
+    username = (data.username or '').strip().lower()
+    password = data.password or ''
+    name = (data.name or '').strip()[:40] or username
+    if not re.fullmatch(r'[a-z0-9._-]{3,64}', username):
+        raise HTTPException(422, '用户名需为 3–64 位字母、数字、点、下划线或短横线')
+    if not (6 <= len(password) <= 72):
+        raise HTTPException(422, '密码长度应为 6–72 位')
+    role = data.role if data.role in ('admin', 'editor', 'reviewer', 'viewer') else 'editor'
+    with Session(engine) as db:
+        if db.get(Credential, username):
+            raise HTTPException(409, '该用户名已存在')
+        user = User(id=uuid.uuid4().hex, email=username + '@internal.local', name=name, created=now())
+        db.add(user)
+        db.flush()
+        db.add(Credential(username=username, user_id=user.id,
+                          password_hash=hash_password(password), created=now(), disabled=False))
+        db.add(Membership(user_id=user.id, space_id=actor['space_id'], role=role, created=now()))
+        db.commit()
+        user_id = user.id
+    log_event('admin.user.create', actor, request, resource=user_id, detail=username)
+    return {'user_id': user_id, 'username': username, 'role': role, 'name': name}
+
+
 @app.post('/api/admin/experts')
 def admin_create_expert(data: ExpertCreate, request: Request):
     """建专家账号 + 绑定一次性发放的专属邀请码（明文只在这里出现一次）。"""
