@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import Literal
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, UploadFile
+from fastapi import File as FormFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import String, Integer, Text, create_engine, select, event
@@ -242,6 +243,28 @@ class ExpertCode(Base):
     user_id: Mapped[str] = mapped_column(String, default='')
     created_by: Mapped[str] = mapped_column(String, default='')
 
+
+class File(Base):
+    __tablename__ = 'files'
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(String, index=True)
+    record_id: Mapped[str] = mapped_column(String, index=True)
+    sha256: Mapped[str] = mapped_column(String, index=True)
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    mime: Mapped[str] = mapped_column(String, default='')
+    ext: Mapped[str] = mapped_column(String, default='')
+    storage_key: Mapped[str] = mapped_column(String, default='')
+    original_name: Mapped[str] = mapped_column(String, default='')
+    kind: Mapped[str] = mapped_column(String, default='')
+    created: Mapped[str] = mapped_column(String, default='')
+
+
+class Config(Base):
+    __tablename__ = 'config'
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    value: Mapped[str] = mapped_column(String, default='{}')
+
+
 Base.metadata.create_all(engine)
 
 
@@ -289,6 +312,109 @@ limits = defaultdict(deque)
 def now():
     return datetime.now(timezone.utc).isoformat()
 
+
+# ---- 文件类型识别与归类（上传用）----
+UPLOAD_DEFAULT_MAX = 50 * 1024 * 1024  # 50MB
+
+# 扩展名回退映射：ext -> (mime, kind, category)
+_EXT_FALLBACK = {
+    'md': ('text/markdown', 'source', '文本资料'),
+    'txt': ('text/plain', 'source', '文本资料'),
+    'csv': ('text/csv', 'source', '数据表格'),
+    'xls': ('application/vnd.ms-excel', 'source', '数据表格'),
+    'ppt': ('application/vnd.ms-powerpoint', 'source', '演示文稿'),
+    'wav': ('audio/wav', 'oral', '口述录音'),
+    'm4a': ('audio/mp4', 'oral', '口述录音'),
+    'webm': ('video/webm', 'oral', '口述录音'),
+    'ogg': ('audio/ogg', 'oral', '口述录音'),
+    'mp3': ('audio/mpeg', 'oral', '口述录音'),
+    'pdf': ('application/pdf', 'source', '文档资料'),
+    'png': ('image/png', 'source', '图像资料'),
+    'jpg': ('image/jpeg', 'source', '图像资料'),
+    'jpeg': ('image/jpeg', 'source', '图像资料'),
+    'gif': ('image/gif', 'source', '图像资料'),
+    'bmp': ('image/bmp', 'source', '图像资料'),
+    'tif': ('image/tiff', 'source', '图像资料'),
+    'tiff': ('image/tiff', 'source', '图像资料'),
+    'webp': ('image/webp', 'source', '图像资料'),
+    'doc': ('application/msword', 'source', '文档资料'),
+    'docx': ('application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'source', '文档资料'),
+    'xlsx': ('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'source', '数据表格'),
+    'pptx': ('application/vnd.openxmlformats-officedocument.presentationml.presentation', 'source', '演示文稿'),
+}
+
+
+def detect_file(content: bytes, filename: str) -> dict:
+    """识别文件真实类型，返回 {mime, ext, kind, category, confidence}。
+    图片默认归 source（原始资料）；音频归 oral；未知兜底 asset。"""
+    ext = (filename.rsplit('.', 1)[-1].lower() if '.' in (filename or '') else '') or ''
+    head = content[:16]
+
+    def r(mime, e, kind, cat, conf):
+        return {'mime': mime, 'ext': e, 'kind': kind, 'category': cat, 'confidence': conf}
+
+    # ZIP 容器二次区分（docx/xlsx/pptx）
+    if head.startswith(b'PK\x03\x04'):
+        import zipfile, io
+        try:
+            names = ' '.join(zipfile.ZipFile(io.BytesIO(content)).namelist()).lower()
+            if 'word/document.xml' in names:
+                return r('application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'docx', 'source', '文档资料', 'high')
+            if 'xl/workbook.xml' in names:
+                return r('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'xlsx', 'source', '数据表格', 'high')
+            if 'ppt/presentation.xml' in names:
+                return r('application/vnd.openxmlformats-officedocument.presentationml.presentation', 'pptx', 'source', '演示文稿', 'high')
+        except Exception:
+            pass
+        return r('application/zip', 'zip', 'source', '文档资料', 'low')
+
+    # RIFF 二次区分（WAV / WEBP）
+    if head.startswith(b'RIFF') and len(content) >= 12:
+        if content[8:12] == b'WAVE':
+            return r('audio/wav', 'wav', 'oral', '口述录音', 'high')
+        if content[8:12] == b'WEBP':
+            return r('image/webp', 'webp', 'source', '图像资料', 'high')
+
+    signs = [
+        (b'%PDF', 'pdf', 'application/pdf', 'source', '文档资料'),
+        (b'\x89PNG\r\n\x1a\n', 'png', 'image/png', 'source', '图像资料'),
+        (b'\xff\xd8\xff', 'jpg', 'image/jpeg', 'source', '图像资料'),
+        (b'GIF8', 'gif', 'image/gif', 'source', '图像资料'),
+        (b'BM', 'bmp', 'image/bmp', 'source', '图像资料'),
+        (b'II*\x00', 'tif', 'image/tiff', 'source', '图像资料'),
+        (b'MM\x00*', 'tif', 'image/tiff', 'source', '图像资料'),
+        (b'OggS', 'ogg', 'audio/ogg', 'oral', '口述录音'),
+        (b'ID3', 'mp3', 'audio/mpeg', 'oral', '口述录音'),
+        (b'\xff\xfb', 'mp3', 'audio/mpeg', 'oral', '口述录音'),
+        (b'\xff\xf3', 'mp3', 'audio/mpeg', 'oral', '口述录音'),
+        (b'\x1aE\xdf\xa3', 'webm', 'video/webm', 'oral', '口述录音'),
+        (b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1', 'doc', 'application/msword', 'source', '文档资料'),
+    ]
+    for sig, e, m, k, cat in signs:
+        if head.startswith(sig):
+            return r(m, e, k, cat, 'high')
+
+    # m4a / mp4（offset 4 处 ftyp）
+    if len(content) >= 12 and content[4:8] == b'ftyp':
+        return r('audio/mp4', 'm4a', 'oral', '口述录音', 'high')
+
+    # 纯文本检测
+    if b'\x00' not in content[:512]:
+        try:
+            content[:512].decode('utf-8')
+            return r('text/plain', 'txt', 'source', '文本资料', 'high')
+        except Exception:
+            pass
+
+    # 扩展名回退
+    if ext in _EXT_FALLBACK:
+        m, k, cat = _EXT_FALLBACK[ext]
+        return r(m, ext, k, cat, 'low')
+
+    # 兜底
+    return r('application/octet-stream', ext or 'bin', 'asset', '未归类', 'low')
+
+
 def normalize(data: dict):
     if not isinstance(data, dict) or data.get('kind') not in KINDS:
         raise HTTPException(422, '资料类型不正确')
@@ -317,13 +443,16 @@ def normalize(data: dict):
         data.setdefault(key,'')
         if not isinstance(data[key],str) or len(data[key])>1000:
             raise HTTPException(422,'资料字段格式不正确')
-    for key in ('path','role','initial','quote','projectId','due','format'):
+    for key in ('path','role','initial','quote','projectId','due','format','mime','sha256','file_id','source_name','detect_confidence','level'):
         if key in data and (not isinstance(data[key],str) or len(data[key])>2000):
             raise HTTPException(422,'资料字段格式不正确')
-    for key in ('example','favorite','archived'):
+    for key in ('example','favorite','archived','needs_review'):
         data.setdefault(key,False)
         if not isinstance(data[key],bool):
             raise HTTPException(422,'资料状态格式不正确')
+    for key in ('size','page_count'):
+        if key in data and (not isinstance(data[key], int) or data[key] < 0):
+            raise HTTPException(422,'资料字段格式不正确')
     for key in ('aliases','unresolvedLinks'):
         if key in data and (not isinstance(data[key],list) or len(data[key])>500 or any(not isinstance(item,str) for item in data[key])):
             raise HTTPException(422,'别名或链接格式不正确')
@@ -496,6 +625,84 @@ def import_records(data: ImportRequest,request: Request):
         saved = [put(db,space,r) for r in data.records]
         db.commit()
         return {'records':saved}
+
+
+@app.post('/api/files')
+async def upload_file(request: Request, file: UploadFile = FormFile(...)):
+    """上传文档/图片/音频，自动识别类型并归类到对应板块。图片默认归 source。"""
+    actor = resolve_actor(request)
+    if not can_write(actor['role']):
+        log_event('file.upload', actor, request, result='denied', detail='角色只读')
+        raise HTTPException(403, '当前身份不能上传')
+    content = await file.read()
+    if not content:
+        raise HTTPException(422, '文件为空')
+    if len(content) > UPLOAD_DEFAULT_MAX:
+        raise HTTPException(413, '文件超过大小上限（50MB）')
+    sha = hashlib.sha256(content).hexdigest()
+    meta = detect_file(content, file.filename or '')
+    space = actor['space_id']
+    # 内容寻址落盘
+    fdir = DATA / 'files' / sha[:2]
+    fdir.mkdir(parents=True, exist_ok=True)
+    target = fdir / (sha + ('.' + meta['ext'] if meta['ext'] else ''))
+    if not target.exists():
+        target.write_bytes(content)
+    storage_key = str(target.relative_to(DATA))
+    title = re.sub(r'\.[^.]+$', '', file.filename or '未命名').strip()[:200] or '未命名'
+    fid = uuid.uuid4().hex
+    rec = {
+        'id': 'file_' + uuid.uuid4().hex[:12],
+        'kind': meta['kind'],
+        'title': title,
+        'body': '',
+        'tags': ['附件', meta['category'], meta['ext']],
+        'category': meta['category'],
+        'status': '已整理' if meta['confidence'] == 'high' else '待整理',
+        'format': meta['ext'],
+        'path': storage_key,
+        'mime': meta['mime'],
+        'size': len(content),
+        'sha256': sha,
+        'file_id': fid,
+        'source_name': file.filename or '',
+        'needs_review': meta['confidence'] != 'high',
+        'detect_confidence': meta['confidence'],
+        'level': 'L1',
+        'created': now(),
+        'updated': now(),
+    }
+    with Session(engine) as db:
+        put(db, space, rec)
+        db.add(File(id=fid, workspace_id=space, record_id=rec['id'], sha256=sha,
+                    size=len(content), mime=meta['mime'], ext=meta['ext'],
+                    storage_key=storage_key, original_name=file.filename or '',
+                    kind=meta['kind'], created=now()))
+        db.commit()
+    log_event('file.upload', actor, request, result='ok', detail=f"{file.filename} -> {meta['kind']}/{meta['ext']}")
+    return {'record': rec, 'detected': meta}
+
+
+@app.get('/api/files/{file_id}')
+def get_file(file_id: str, request: Request):
+    """下载附件（受身份裁剪保护）。"""
+    actor = resolve_actor(request)
+    with Session(engine) as db:
+        f = db.get(File, file_id)
+        if not f or f.workspace_id != actor['space_id']:
+            raise HTTPException(404, '文件不存在')
+        rec = db.get(Record, (actor['space_id'], f.record_id))
+        if rec and not can_see(json.loads(rec.payload), actor, db):
+            raise HTTPException(403, '无权查看该文件')
+    target = (DATA / f.storage_key).resolve()
+    try:
+        target.relative_to((DATA / 'files').resolve())
+    except ValueError:
+        raise HTTPException(404, '文件不存在')
+    if not target.is_file():
+        raise HTTPException(404, '文件不存在')
+    return FileResponse(target, media_type=f.mime or 'application/octet-stream',
+                        filename=f.original_name or f.id)
 
 @app.get('/api/search')
 def search(q: str,request: Request):
