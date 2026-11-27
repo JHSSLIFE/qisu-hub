@@ -627,6 +627,96 @@ def import_records(data: ImportRequest,request: Request):
         return {'records':saved}
 
 
+
+def extract_text(content: bytes, ext: str) -> str:
+    """提取文档文本（txt/md/docx/pdf），供模型识别属性。"""
+    ext = (ext or '').lower()
+    if ext in ('txt', 'md', 'markdown'):
+        for enc in ('utf-8', 'gbk'):
+            try:
+                return content.decode(enc)[:12000]
+            except Exception:
+                pass
+        return content.decode('utf-8', errors='ignore')[:12000]
+    if ext == 'docx':
+        import zipfile, io
+        try:
+            xml = zipfile.ZipFile(io.BytesIO(content)).read('word/document.xml').decode('utf-8', 'replace')
+            return ''.join(re.findall(r'<w:t[^>]*>(.*?)</w:t>', xml, re.S))[:12000]
+        except Exception:
+            return ''
+    if ext == 'pdf':
+        import io
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(content))
+            return '\n'.join((p.extract_text() or '') for p in reader.pages)[:12000]
+        except Exception:
+            return ''
+    return ''
+
+
+async def llm_classify(text: str, filename: str):
+    """用模型识别文档标题/类型/标签/模块，返回 dict 或 None。"""
+    key = os.environ.get('OPENAI_API_KEY')
+    if not key or not text or not text.strip():
+        return None
+    base = os.environ.get('OPENAI_BASE_URL', 'https://api.deepseek.com/v1').rstrip('/')
+    model = os.environ.get('OPENAI_MODEL') or 'deepseek-chat'
+    prompt = ('你是文化知识库的文档归类助手。根据文档内容判断标题、类型、模块和标签，只返回 JSON，不要任何解释。'
+              'kind 从以下选一个：knowledge(知识条目/总结性知识)、source(原始资料/原文档案)、note(研究笔记)、evidence(考证记录)、expert(专家档案)。'
+              'category 从以下选一个：国保原文、知识卡片、文档资料、数据表格、文本资料、图像资料、研究笔记、考证记录、专家资料。'
+              'tags 给 3-6 个中文关键词。'
+              '返回格式：{"title":"简洁标题","kind":"source","category":"国保原文","tags":["关键词1","关键词2"]}')
+    body = {'model': model,
+            'messages': [{'role': 'system', 'content': prompt},
+                         {'role': 'user', 'content': '文件名：' + (filename or '') + '\n\n文档内容（节选）：\n' + text[:2000]}],
+            'temperature': 0.2, 'max_tokens': 300}
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            res = await client.post(base + '/chat/completions',
+                                    headers={'Authorization': 'Bearer ' + key}, json=body)
+            res.raise_for_status()
+            result = res.json()
+        raw = (result.get('choices') or [{}])[0].get('message', {}).get('content', '')
+        raw = re.sub(r'^```(?:json)?\s*|\s*```$', '', raw.strip())
+        parsed = json.loads(raw)
+        if not isinstance(parsed, dict):
+            return None
+        return parsed
+    except Exception:
+        return None
+
+
+
+@app.post('/api/ai/asr')
+async def ai_asr(request: Request, file: UploadFile = FormFile(...)):
+    """知识助理语音输入：音频转文字（DeepSeek ASR）。"""
+    actor = resolve_actor(request)
+    if not can_write(actor['role']):
+        raise HTTPException(403, '当前身份不能使用语音识别')
+    key = os.environ.get('OPENAI_API_KEY')
+    if not key:
+        raise HTTPException(503, '语音识别服务未配置')
+    content = await file.read()
+    if not content:
+        raise HTTPException(422, '音频为空')
+    if len(content) > 8 * 1024 * 1024:
+        raise HTTPException(413, '音频超过 8MB')
+    base = os.environ.get('OPENAI_BASE_URL', 'https://api.deepseek.com/v1').rstrip('/')
+    try:
+        async with httpx.AsyncClient(timeout=80) as client:
+            res = await client.post(base + '/tools/asr',
+                                    headers={'Authorization': 'Bearer ' + key},
+                                    files={'file': ('speech.wav', content, 'audio/wav')})
+            res.raise_for_status()
+            d = res.json()
+    except Exception:
+        raise HTTPException(502, '语音识别失败，请重试')
+    log_event('ai.asr', actor, request, result='ok', detail=f"{d.get('duration_ms', 0)}ms")
+    return {'text': d.get('text', ''), 'duration_ms': d.get('duration_ms', 0), 'request_id': d.get('request_id', '')}
+
+
 @app.post('/api/files')
 async def upload_file(request: Request, file: UploadFile = FormFile(...)):
     """上传文档/图片/音频，自动识别类型并归类到对应板块。图片默认归 source。"""
@@ -641,6 +731,19 @@ async def upload_file(request: Request, file: UploadFile = FormFile(...)):
         raise HTTPException(413, '文件超过大小上限（50MB）')
     sha = hashlib.sha256(content).hexdigest()
     meta = detect_file(content, file.filename or '')
+    # 文档智能识别：提取文本并用模型识别标题/类型/标签/模块
+    text = extract_text(content, meta['ext'])
+    llm_meta = await llm_classify(text, file.filename or '') if (text and len(text.strip()) >= 50) else None
+    if llm_meta:
+        if llm_meta.get('kind') in KINDS:
+            meta['kind'] = llm_meta['kind']
+        if llm_meta.get('category'):
+            meta['category'] = str(llm_meta['category'])[:100]
+        if llm_meta.get('title'):
+            meta['title'] = str(llm_meta['title']).strip()[:200]
+        meta['tags'] = [str(t) for t in llm_meta.get('tags', []) if isinstance(t, str)][:8]
+        meta['confidence'] = 'high'
+        meta['llm'] = True
     space = actor['space_id']
     # 内容寻址落盘
     fdir = DATA / 'files' / sha[:2]
@@ -649,14 +752,14 @@ async def upload_file(request: Request, file: UploadFile = FormFile(...)):
     if not target.exists():
         target.write_bytes(content)
     storage_key = str(target.relative_to(DATA))
-    title = re.sub(r'\.[^.]+$', '', file.filename or '未命名').strip()[:200] or '未命名'
+    title = meta.get('title') or re.sub(r'\.[^.]+$', '', file.filename or '未命名').strip()[:200] or '未命名'
     fid = uuid.uuid4().hex
     rec = {
         'id': 'file_' + uuid.uuid4().hex[:12],
         'kind': meta['kind'],
         'title': title,
         'body': '',
-        'tags': ['附件', meta['category'], meta['ext']],
+        'tags': ['附件', meta['category'], meta['ext']] + meta.get('tags', []),
         'category': meta['category'],
         'status': '已整理' if meta['confidence'] == 'high' else '待整理',
         'format': meta['ext'],
@@ -679,7 +782,7 @@ async def upload_file(request: Request, file: UploadFile = FormFile(...)):
                     storage_key=storage_key, original_name=file.filename or '',
                     kind=meta['kind'], created=now()))
         db.commit()
-    log_event('file.upload', actor, request, result='ok', detail=f"{file.filename} -> {meta['kind']}/{meta['ext']}")
+    log_event('file.upload', actor, request, result='ok', detail=f"{file.filename} -> {meta['kind']}/{meta['ext']}" + (' (模型识别)' if meta.get('llm') else ''))
     return {'record': rec, 'detected': meta}
 
 
