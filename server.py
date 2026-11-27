@@ -304,7 +304,7 @@ with engine.begin() as con:
     con.exec_driver_sql("CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_search USING fts5(workspace_id UNINDEXED, record_id UNINDEXED, title, body, tags, tokenize='trigram')")
 
 SEED = json.loads((ROOT / 'seed.json').read_text())
-KINDS = {'knowledge', 'expert', 'source', 'evidence', 'draft', 'project', 'task', 'note', 'oral', 'asset'}
+KINDS = {'knowledge', 'expert', 'source', 'evidence', 'draft', 'project', 'task', 'note', 'oral', 'asset', 'event'}
 ID_PATTERN = re.compile(r'^[A-Za-z0-9_-]{1,100}$')
 app = FastAPI(title='耆宿说研究空间', version='1.0.0', docs_url=None, redoc_url=None, openapi_url=None)
 limits = defaultdict(deque)
@@ -443,7 +443,7 @@ def normalize(data: dict):
         data.setdefault(key,'')
         if not isinstance(data[key],str) or len(data[key])>1000:
             raise HTTPException(422,'资料字段格式不正确')
-    for key in ('path','role','initial','quote','projectId','due','format','mime','sha256','file_id','source_name','detect_confidence','level'):
+    for key in ('path','role','initial','quote','projectId','due','format','mime','sha256','file_id','source_name','detect_confidence','level','year','expertId'):
         if key in data and (not isinstance(data[key],str) or len(data[key])>2000):
             raise HTTPException(422,'资料字段格式不正确')
     for key in ('example','favorite','archived','needs_review'):
